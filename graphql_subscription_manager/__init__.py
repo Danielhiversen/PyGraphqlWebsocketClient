@@ -61,13 +61,18 @@ class SubscriptionManager:
                                                       subprotocols=["graphql-subscriptions"])
             self._state = STATE_RUNNING
             _LOGGER.debug("Running")
-            self.websocket.send(json.dumps({"type": "init",
-                                            "payload": self._init_payload}))
+            await self.websocket.send(json.dumps({"type": "init",
+                                                  "payload": self._init_payload}))
 
+            k = 0
             while self._state == STATE_RUNNING:
                 try:
                     msg = await asyncio.wait_for(self.websocket.recv(), timeout=30)
                 except asyncio.TimeoutError:
+                    k += 1
+                    if k > 10:
+                        _LOGGER.error("No data in 10 minutes, reconnecting.")
+                        return
                     _LOGGER.warning("No websocket data in 30 seconds, checking the connection.")
                     try:
                         pong_waiter = await self.websocket.ping()
@@ -76,6 +81,7 @@ class SubscriptionManager:
                         _LOGGER.error("No response to ping in 10 seconds, reconnecting.")
                         return
                     continue
+                k = 0
                 await self._process_msg(msg)
         except Exception:  # pylint: disable=broad-except
             _LOGGER.error('Unexpected error', exc_info=True)
