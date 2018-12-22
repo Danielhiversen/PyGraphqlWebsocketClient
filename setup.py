@@ -7,7 +7,7 @@ with open("README.md", 'r') as fp:
 setup(
     name = 'graphql_subscription_manager',
     packages = ['graphql_subscription_manager'],
-    install_requires=[],
+    install_requires=['websockets>=6.0'],
     version='0.1.0',
     description='A python3 library for graphql subscription manager',
     long_description=long_description,
