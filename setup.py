@@ -9,7 +9,7 @@ setup(
     packages = ['graphql_subscription_manager'],
     install_requires=[],
     version='0.1.0',
-    description='A python3 library for graphql subscription manager,
+    description='A python3 library for graphql subscription manager',
     long_description=long_description,
     python_requires='>=3.5.3',
     author='Daniel Hoyer Iversen',
