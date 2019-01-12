@@ -8,7 +8,7 @@ setup(
     name = 'graphql_subscription_manager',
     packages = ['graphql_subscription_manager'],
     install_requires=['websockets>=6.0'],
-    version='0.2.0',
+    version='0.2.1',
     description='A python3 library for graphql subscription manager',
     long_description=long_description,
     python_requires='>=3.5.3',
