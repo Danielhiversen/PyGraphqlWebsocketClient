@@ -91,8 +91,6 @@ class SubscriptionManager:
                 _LOGGER.warning("Reconnecting")
                 self._state = STATE_STOPPED
                 self.retry()
-            else:
-                self._state = STATE_STOPPED
             _LOGGER.debug("Closing running task.")
 
     async def stop(self, timeout=10):
