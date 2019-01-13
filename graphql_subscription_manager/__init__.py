@@ -71,7 +71,7 @@ class SubscriptionManager:
                 except asyncio.TimeoutError:
                     k += 1
                     if k > 30:
-                        _LOGGER.error("No data in 15 minutes, reconnecting.")
+                        _LOGGER.error("No data, reconnecting.")
                         return
                     _LOGGER.warning("No websocket data in 30 seconds, checking the connection.")
                     try:
