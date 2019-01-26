@@ -155,7 +155,8 @@ class SubscriptionManager:
             return
         await self.websocket.send(json.dumps({"id": subscription_id,
                                               "type": "subscription_end"}))
-        self.subscriptions.pop(subscription_id)
+        if self.subscriptions:
+            self.subscriptions.pop(subscription_id)
 
     async def _close_websocket(self):
         if self.websocket is None:
