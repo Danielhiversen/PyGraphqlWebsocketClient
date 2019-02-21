@@ -82,14 +82,16 @@ class SubscriptionManager:
                         await asyncio.wait_for(pong_waiter, timeout=10)
                     except asyncio.TimeoutError:
                         if self._show_connection_error:
-                            _LOGGER.error("No response to ping in 10 seconds, reconnecting.")
+                            _LOGGER.error("No response to ping in 10 seconds, "
+                                          "reconnecting.")
                             self._show_connection_error = False
                         return
                     continue
                 k = 0
                 await self._process_msg(msg)
                 self._show_connection_error = True
-        except (websockets.exceptions.InvalidStatusCode, websockets.exceptions.ConnectionClosed):
+        except (websockets.exceptions.InvalidStatusCode,
+                websockets.exceptions.ConnectionClosed):
             if self._show_connection_error:
                 _LOGGER.error('Connection error', exc_info=True)
                 self._show_connection_error = False
