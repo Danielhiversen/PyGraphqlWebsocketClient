@@ -30,6 +30,7 @@ class SubscriptionManager:
         self._wait_time_before_retry = 15
         self._session_id = 0
         self._init_payload = init_payload
+        self._show_connection_error = True
 
     def start(self):
         """Start websocket."""
@@ -71,18 +72,27 @@ class SubscriptionManager:
                 except asyncio.TimeoutError:
                     k += 1
                     if k > 30:
-                        _LOGGER.error("No data, reconnecting.")
+                        if self._show_connection_error:
+                            _LOGGER.error("No data, reconnecting.")
+                            self._show_connection_error = False
                         return
                     _LOGGER.warning("No websocket data in 30 seconds, checking the connection.")
                     try:
                         pong_waiter = await self.websocket.ping()
                         await asyncio.wait_for(pong_waiter, timeout=10)
                     except asyncio.TimeoutError:
-                        _LOGGER.error("No response to ping in 10 seconds, reconnecting.")
+                        if self._show_connection_error:
+                            _LOGGER.error("No response to ping in 10 seconds, reconnecting.")
+                            self._show_connection_error = False
                         return
                     continue
                 k = 0
                 await self._process_msg(msg)
+                self._show_connection_error = True
+        except (websockets.exceptions.InvalidStatusCode, websockets.exceptions.ConnectionClosed):
+            if self._show_connection_error:
+                _LOGGER.error('Connection error', exc_info=True)
+                self._show_connection_error = False
         except Exception:  # pylint: disable=broad-except
             _LOGGER.error('Unexpected error', exc_info=True)
         finally:
