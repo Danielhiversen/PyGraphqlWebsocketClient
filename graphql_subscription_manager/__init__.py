@@ -90,9 +90,13 @@ class SubscriptionManager:
                 k = 0
                 await self._process_msg(msg)
                 self._show_connection_error = True
-        except (websockets.exceptions.InvalidStatusCode,
-                websockets.exceptions.ConnectionClosed):
+        except websockets.exceptions.InvalidStatusCode:
             if self._show_connection_error:
+                _LOGGER.error('Connection error', exc_info=True)
+                self._show_connection_error = False
+        except websockets.exceptions.ConnectionClosed:
+            if (self._show_connection_error 
+                and self._state != STATE_STOPPED):
                 _LOGGER.error('Connection error', exc_info=True)
                 self._show_connection_error = False
         except Exception:  # pylint: disable=broad-except
