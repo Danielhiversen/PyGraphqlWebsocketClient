@@ -31,6 +31,7 @@ class SubscriptionManager:
         self._session_id = 0
         self._init_payload = init_payload
         self._show_connection_error = True
+        self._is_running = False
 
     def start(self):
         """Start websocket."""
@@ -51,7 +52,7 @@ class SubscriptionManager:
     @property
     def is_running(self):
         """Return if client is running or not."""
-        return self._state == STATE_RUNNING
+        return self._is_running
 
     async def running(self):
         """Start websocket connection."""
@@ -75,6 +76,7 @@ class SubscriptionManager:
                         if self._show_connection_error:
                             _LOGGER.error("No data, reconnecting.")
                             self._show_connection_error = False
+                            self._is_running = False
                         return
                     _LOGGER.warning("No websocket data in 30 seconds, checking the connection.")
                     try:
@@ -85,10 +87,12 @@ class SubscriptionManager:
                             _LOGGER.error("No response to ping in 10 seconds, "
                                           "reconnecting.")
                             self._show_connection_error = False
+                            self._is_running = False
                         return
                     continue
                 k = 0
                 await self._process_msg(msg)
+                self._is_running = True
                 self._show_connection_error = True
         except (websockets.exceptions.InvalidStatusCode,
                 websockets.exceptions.ConnectionClosed):
