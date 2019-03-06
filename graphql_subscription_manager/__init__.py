@@ -149,20 +149,20 @@ class SubscriptionManager:
 
     async def subscribe(self, sub_query, callback):
         """Add a new subscription."""
+        while True:
+            if self.websocket is None or not self.websocket.open or not self._state == STATE_RUNNING:
+                await asyncio.sleep(1, loop=self.loop)
+                continue
 
-        if self.websocket is None or not self.websocket.open or not self._state == STATE_RUNNING:
-            await asyncio.sleep(1, loop=self.loop)
-            return await self.subscribe(sub_query, callback)
-
-        current_session_id = self._session_id
-        self._session_id += 1
-        subscription = {"query": sub_query,
-                        "type": "subscription_start", "id": current_session_id}
-        json_subscription = json.dumps(subscription)
-        await self.websocket.send(json_subscription)
-        self.subscriptions[current_session_id] = (callback, sub_query)
-        _LOGGER.debug("New subscription %s", current_session_id)
-        return current_session_id
+            current_session_id = self._session_id
+            self._session_id += 1
+            subscription = {"query": sub_query,
+                            "type": "subscription_start", "id": current_session_id}
+            json_subscription = json.dumps(subscription)
+            await self.websocket.send(json_subscription)
+            self.subscriptions[current_session_id] = (callback, sub_query)
+            _LOGGER.debug("New subscription %s", current_session_id)
+            return current_session_id
 
     async def unsubscribe(self, subscription_id):
         """Unsubscribe."""
