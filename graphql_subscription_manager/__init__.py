@@ -56,6 +56,7 @@ class SubscriptionManager:
 
     async def running(self):
         """Start websocket connection."""
+        # pylint: disable=too-many-branches, too-many-statements
         await self._close_websocket()
         try:
             _LOGGER.debug("Starting")
@@ -94,9 +95,15 @@ class SubscriptionManager:
                 self._is_running = True
                 await self._process_msg(msg)
                 self._show_connection_error = True
-        except (websockets.exceptions.InvalidStatusCode,
-                websockets.exceptions.ConnectionClosed):
+        except websockets.exceptions.InvalidStatusCode:
             if self._show_connection_error:
+                _LOGGER.error('Connection error', exc_info=True)
+                self._show_connection_error = False
+            else:
+                _LOGGER.debug('Connection error', exc_info=True)
+        except websockets.exceptions.ConnectionClosed:
+            if (self._show_connection_error
+                    and self._state != STATE_STOPPED):
                 _LOGGER.error('Connection error', exc_info=True)
                 self._show_connection_error = False
             else:
