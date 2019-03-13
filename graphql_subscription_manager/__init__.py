@@ -31,6 +31,7 @@ class SubscriptionManager:
         self._session_id = 0
         self._init_payload = init_payload
         self._show_connection_error = True
+        self._is_running = False
 
     def start(self):
         """Start websocket."""
@@ -51,7 +52,7 @@ class SubscriptionManager:
     @property
     def is_running(self):
         """Return if client is running or not."""
-        return self._state == STATE_RUNNING
+        return self._is_running
 
     async def running(self):
         """Start websocket connection."""
@@ -71,12 +72,13 @@ class SubscriptionManager:
                     msg = await asyncio.wait_for(self.websocket.recv(), timeout=30)
                 except asyncio.TimeoutError:
                     k += 1
-                    if k > 30:
+                    if k > 10:
                         if self._show_connection_error:
                             _LOGGER.error("No data, reconnecting.")
                             self._show_connection_error = False
+                        self._is_running = False
                         return
-                    _LOGGER.warning("No websocket data in 30 seconds, checking the connection.")
+                    _LOGGER.debug("No websocket data in 30 seconds, checking the connection.")
                     try:
                         pong_waiter = await self.websocket.ping()
                         await asyncio.wait_for(pong_waiter, timeout=10)
@@ -85,26 +87,32 @@ class SubscriptionManager:
                             _LOGGER.error("No response to ping in 10 seconds, "
                                           "reconnecting.")
                             self._show_connection_error = False
+                        self._is_running = False
                         return
                     continue
                 k = 0
+                self._is_running = True
                 await self._process_msg(msg)
                 self._show_connection_error = True
         except websockets.exceptions.InvalidStatusCode:
             if self._show_connection_error:
                 _LOGGER.error('Connection error', exc_info=True)
                 self._show_connection_error = False
+            else:
+                _LOGGER.debug('Connection error', exc_info=True)
         except websockets.exceptions.ConnectionClosed:
             if (self._show_connection_error 
                 and self._state != STATE_STOPPED):
                 _LOGGER.error('Connection error', exc_info=True)
                 self._show_connection_error = False
+            else:
+                _LOGGER.debug('Connection error', exc_info=True)
         except Exception:  # pylint: disable=broad-except
             _LOGGER.error('Unexpected error', exc_info=True)
         finally:
             await self._close_websocket()
             if self._state != STATE_STOPPED:
-                _LOGGER.warning("Reconnecting")
+                _LOGGER.debug("Reconnecting")
                 self._state = STATE_STOPPED
                 self.retry()
             _LOGGER.debug("Closing running task.")
@@ -149,20 +157,20 @@ class SubscriptionManager:
 
     async def subscribe(self, sub_query, callback):
         """Add a new subscription."""
+        while True:
+            if self.websocket is None or not self.websocket.open or not self._state == STATE_RUNNING:
+                await asyncio.sleep(1, loop=self.loop)
+                continue
 
-        if self.websocket is None or not self.websocket.open or not self._state == STATE_RUNNING:
-            await asyncio.sleep(1, loop=self.loop)
-            return await self.subscribe(sub_query, callback)
-
-        current_session_id = self._session_id
-        self._session_id += 1
-        subscription = {"query": sub_query,
-                        "type": "subscription_start", "id": current_session_id}
-        json_subscription = json.dumps(subscription)
-        await self.websocket.send(json_subscription)
-        self.subscriptions[current_session_id] = (callback, sub_query)
-        _LOGGER.debug("New subscription %s", current_session_id)
-        return current_session_id
+            current_session_id = self._session_id
+            self._session_id += 1
+            subscription = {"query": sub_query,
+                            "type": "subscription_start", "id": current_session_id}
+            json_subscription = json.dumps(subscription)
+            await self.websocket.send(json_subscription)
+            self.subscriptions[current_session_id] = (callback, sub_query)
+            _LOGGER.debug("New subscription %s", current_session_id)
+            return current_session_id
 
     async def unsubscribe(self, subscription_id):
         """Unsubscribe."""
