@@ -102,7 +102,7 @@ class SubscriptionManager:
                 _LOGGER.debug('Connection error', exc_info=True)
         except websockets.exceptions.ConnectionClosed:
             if (self._show_connection_error 
-                and self._state != STATE_STOPPED):
+                    and self._state != STATE_STOPPED):
                 _LOGGER.error('Connection error', exc_info=True)
                 self._show_connection_error = False
             else:
