@@ -198,7 +198,6 @@ class SubscriptionManager:
 
         subscription_id = result.get('id')
         if subscription_id is None:
-            _LOGGER.debug('Id %s.', subscription_id)
             return
 
         callback, _ = self.subscriptions.get(subscription_id, (None, None))
