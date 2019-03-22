@@ -41,9 +41,9 @@ class SubscriptionManager:
         self._state = STATE_STARTING
         self._cancel_client_task()
         self._client_task = self.loop.create_task(self.running())
-        for subscription_id in self.subscriptions.copy():
-            callback, sub_query = self.subscriptions.pop(subscription_id, (None, None))
-            _LOGGER.debug("Removed, %s", subscription_id)
+        for subscription in self.subscriptions.copy():
+            callback, sub_query = self.subscriptions.pop(subscription, (None, None))
+            _LOGGER.debug("Removed, %s", subscription)
             if callback is None:
                 continue
             _LOGGER.debug('Add subscription %s', callback)
