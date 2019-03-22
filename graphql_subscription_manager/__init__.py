@@ -9,13 +9,14 @@ import websockets
 
 _LOGGER = logging.getLogger(__name__)
 
-STATE_STARTING = 'starting'
-STATE_RUNNING = 'running'
-STATE_STOPPED = 'stopped'
+STATE_STARTING = "starting"
+STATE_RUNNING = "running"
+STATE_STOPPED = "stopped"
 
 
 class SubscriptionManager:
     """Subscription manager."""
+
     # pylint: disable=too-many-instance-attributes
 
     def __init__(self, loop, init_payload, url):
@@ -35,7 +36,7 @@ class SubscriptionManager:
 
     def start(self):
         """Start websocket."""
-        _LOGGER.debug('Start state %s.', self._state)
+        _LOGGER.debug("Start state %s.", self._state)
         if self._state == STATE_RUNNING:
             return
         self._state = STATE_STARTING
@@ -46,7 +47,7 @@ class SubscriptionManager:
             _LOGGER.debug("Removed, %s", subscription)
             if callback is None:
                 continue
-            _LOGGER.debug('Add subscription %s', callback)
+            _LOGGER.debug("Add subscription %s", callback)
             self.loop.create_task(self.subscribe(sub_query, callback))
 
     @property
@@ -60,12 +61,14 @@ class SubscriptionManager:
         await self._close_websocket()
         try:
             _LOGGER.debug("Starting")
-            self.websocket = await websockets.connect(self._url,
-                                                      subprotocols=["graphql-subscriptions"])
+            self.websocket = await websockets.connect(
+                self._url, subprotocols=["graphql-subscriptions"]
+            )
             self._state = STATE_RUNNING
             _LOGGER.debug("Running")
-            await self.websocket.send(json.dumps({"type": "init",
-                                                  "payload": self._init_payload}))
+            await self.websocket.send(
+                json.dumps({"type": "init", "payload": self._init_payload})
+            )
 
             k = 0
             while self._state == STATE_RUNNING:
@@ -79,14 +82,17 @@ class SubscriptionManager:
                             self._show_connection_error = False
                         self._is_running = False
                         return
-                    _LOGGER.debug("No websocket data in 30 seconds, checking the connection.")
+                    _LOGGER.debug(
+                        "No websocket data in 30 seconds, checking the connection."
+                    )
                     try:
                         pong_waiter = await self.websocket.ping()
                         await asyncio.wait_for(pong_waiter, timeout=10)
                     except asyncio.TimeoutError:
                         if self._show_connection_error:
-                            _LOGGER.error("No response to ping in 10 seconds, "
-                                          "reconnecting.")
+                            _LOGGER.error(
+                                "No response to ping in 10 seconds, " "reconnecting."
+                            )
                             self._show_connection_error = False
                         self._is_running = False
                         return
@@ -97,19 +103,18 @@ class SubscriptionManager:
                 self._show_connection_error = True
         except websockets.exceptions.InvalidStatusCode:
             if self._show_connection_error:
-                _LOGGER.error('Connection error', exc_info=True)
+                _LOGGER.error("Connection error", exc_info=True)
                 self._show_connection_error = False
             else:
-                _LOGGER.debug('Connection error', exc_info=True)
+                _LOGGER.debug("Connection error", exc_info=True)
         except websockets.exceptions.ConnectionClosed:
-            if (self._show_connection_error
-                    and self._state != STATE_STOPPED):
-                _LOGGER.error('Connection error', exc_info=True)
+            if self._show_connection_error and self._state != STATE_STOPPED:
+                _LOGGER.error("Connection error", exc_info=True)
                 self._show_connection_error = False
             else:
-                _LOGGER.debug('Connection error', exc_info=True)
+                _LOGGER.debug("Connection error", exc_info=True)
         except Exception:  # pylint: disable=broad-except
-            _LOGGER.error('Unexpected error', exc_info=True)
+            _LOGGER.error("Unexpected error", exc_info=True)
         finally:
             await self._close_websocket()
             if self._state != STATE_STOPPED:
@@ -128,17 +133,21 @@ class SubscriptionManager:
             _LOGGER.debug("Sending unsubscribe: %s", subscription_id)
             await self.unsubscribe(subscription_id)
 
-        while (timeout > 0 and
-               self.websocket is not None
-               and not self.subscriptions
-               and (time() - start_time) < timeout/2):
+        while (
+            timeout > 0
+            and self.websocket is not None
+            and not self.subscriptions
+            and (time() - start_time) < timeout / 2
+        ):
             await asyncio.sleep(0.1, loop=self.loop)
 
         self._state = STATE_STOPPED
-        while (timeout > 0 and
-               self.websocket is not None and
-               not self.websocket.closed and
-               (time() - start_time) < timeout):
+        while (
+            timeout > 0
+            and self.websocket is not None
+            and not self.websocket.closed
+            and (time() - start_time) < timeout
+        ):
             await asyncio.sleep(0.1, loop=self.loop)
 
         await self._close_websocket()
@@ -153,20 +162,31 @@ class SubscriptionManager:
             return
         self._cancel_retry_timer()
         self._state = STATE_STARTING
-        self._retry_timer = self.loop.call_later(self._wait_time_before_retry, self.start)
-        _LOGGER.debug('Reconnecting to server in %i seconds.', self._wait_time_before_retry)
+        self._retry_timer = self.loop.call_later(
+            self._wait_time_before_retry, self.start
+        )
+        _LOGGER.debug(
+            "Reconnecting to server in %i seconds.", self._wait_time_before_retry
+        )
 
     async def subscribe(self, sub_query, callback):
         """Add a new subscription."""
         while True:
-            if self.websocket is None or not self.websocket.open or not self._state == STATE_RUNNING:
+            if (
+                self.websocket is None
+                or not self.websocket.open
+                or not self._state == STATE_RUNNING
+            ):
                 await asyncio.sleep(1, loop=self.loop)
                 continue
 
             current_session_id = self._session_id
             self._session_id += 1
-            subscription = {"query": sub_query,
-                            "type": "subscription_start", "id": current_session_id}
+            subscription = {
+                "query": sub_query,
+                "type": "subscription_start",
+                "id": current_session_id,
+            }
             json_subscription = json.dumps(subscription)
             await self.websocket.send(json_subscription)
             self.subscriptions[current_session_id] = (callback, sub_query)
@@ -178,8 +198,9 @@ class SubscriptionManager:
         if self.websocket is None or not self.websocket.open:
             _LOGGER.warning("Websocket is closed.")
             return
-        await self.websocket.send(json.dumps({"id": subscription_id,
-                                              "type": "subscription_end"}))
+        await self.websocket.send(
+            json.dumps({"id": subscription_id, "type": "subscription_end"})
+        )
         if self.subscriptions and subscription_id in self.subscriptions:
             self.subscriptions.pop(subscription_id)
 
@@ -196,20 +217,20 @@ class SubscriptionManager:
         result = json.loads(msg)
         _LOGGER.debug("Recv, %s", result)
 
-        subscription_id = result.get('id')
+        subscription_id = result.get("id")
         if subscription_id is None:
             return
 
         callback, _ = self.subscriptions.get(subscription_id, (None, None))
         if callback is None:
-            _LOGGER.debug('Unknown id %s.', subscription_id)
+            _LOGGER.debug("Unknown id %s.", subscription_id)
             return
 
-        if result.get('type', '') == 'complete':
-            _LOGGER.debug('Unsubscribe %s successfully.', subscription_id)
+        if result.get("type", "") == "complete":
+            _LOGGER.debug("Unsubscribe %s successfully.", subscription_id)
             return
 
-        data = result.get('payload')
+        data = result.get("payload")
         if data is None:
             return
 
