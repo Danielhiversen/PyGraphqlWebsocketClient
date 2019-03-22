@@ -209,7 +209,7 @@ class SubscriptionManager:
             _LOGGER.debug('Unsubscribe %s successfully.', subscription_id)
             return
 
-        data = result.get('payload', {})
+        data = result.get('payload')
         if data is None:
             return
 
