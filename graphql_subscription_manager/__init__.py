@@ -238,14 +238,16 @@ class SubscriptionManager:
 
     def _cancel_retry_timer(self):
         if self._retry_timer:
-            try:
-                self._retry_timer.cancel()
-            finally:
-                self._retry_timer = None
+            return
+        try:
+            self._retry_timer.cancel()
+        finally:
+            self._retry_timer = None
 
     def _cancel_client_task(self):
-        if self._client_task:
-            try:
-                self._client_task.cancel()
-            finally:
-                self._client_task = None
+        if not self._client_task:
+            return
+        try:
+            self._client_task.cancel()
+        finally:
+            self._client_task = None
