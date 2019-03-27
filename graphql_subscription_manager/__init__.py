@@ -237,7 +237,7 @@ class SubscriptionManager:
         await callback(data)
 
     def _cancel_retry_timer(self):
-        if self._retry_timer:
+        if not self._retry_timer:
             return
         try:
             self._retry_timer.cancel()
