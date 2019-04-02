@@ -91,7 +91,7 @@ class SubscriptionManager:
                     except asyncio.TimeoutError:
                         if self._show_connection_error:
                             _LOGGER.error(
-                                "No response to ping in 10 seconds, " "reconnecting."
+                                "No response to ping in 10 seconds, reconnecting."
                             )
                             self._show_connection_error = False
                         self._is_running = False
