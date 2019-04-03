@@ -160,8 +160,10 @@ class SubscriptionManager:
         if self._state in [STATE_STARTING, STATE_RUNNING]:
             _LOGGER.debug("Skip retry since state: %s", self._state)
             return
+        _LOGGER.debug("Cancel retry timer")
         self._cancel_retry_timer()
         self._state = STATE_STARTING
+        _LOGGER.debug("Restart")
         self._retry_timer = self.loop.call_later(
             self._wait_time_before_retry, self.start
         )
@@ -237,7 +239,7 @@ class SubscriptionManager:
         await callback(data)
 
     def _cancel_retry_timer(self):
-        if not self._retry_timer:
+        if self._retry_timer is None:
             return
         try:
             self._retry_timer.cancel()
@@ -245,7 +247,7 @@ class SubscriptionManager:
             self._retry_timer = None
 
     def _cancel_client_task(self):
-        if not self._client_task:
+        if self._client_task is None:
             return
         try:
             self._client_task.cancel()
