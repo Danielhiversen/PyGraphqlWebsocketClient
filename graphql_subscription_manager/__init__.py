@@ -220,7 +220,15 @@ class SubscriptionManager:
         _LOGGER.debug("Recv, %s", result)
 
         if result.get("type") == "init_fail":
+            if result.get("payload", {}).get("error") == 'Too many concurrent sockets for token':
+                self._wait_time_before_retry = self._wait_time_before_retry * 2
+                if self._wait_time_before_retry >= 120:
+                    _LOGGER.error("Connection is closed, too many concurrent sockets for token")
+                    self._state = STATE_STOPPED
+                self._wait_time_before_retry = min(self._wait_time_before_retry, 120)
+                return
             _LOGGER.error(result.get("payload", {}).get("error"))
+            return
 
         subscription_id = result.get("id")
         if subscription_id is None:
@@ -238,6 +246,8 @@ class SubscriptionManager:
         data = result.get("payload")
         if data is None:
             return
+
+        self._wait_time_before_retry = 15
 
         await callback(data)
 
