@@ -219,8 +219,8 @@ class SubscriptionManager:
         result = json.loads(msg)
         _LOGGER.debug("Recv, %s", result)
 
-        if msg.get("type") == "init_fail":
-            _LOGGER.error(msg.get("payload", {}).get("error"))
+        if result.get("type") == "init_fail":
+            _LOGGER.error(result.get("payload", {}).get("error"))
 
         subscription_id = result.get("id")
         if subscription_id is None:
