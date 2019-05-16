@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import sys
 from time import time
 
 import websockets
@@ -33,6 +34,7 @@ class SubscriptionManager:
         self._init_payload = init_payload
         self._show_connection_error = True
         self._is_running = False
+        self._user_agent = 'Python/{0[0]}.{0[1]} PyGraphqlWebsocketManager'.format(sys.version_info)
 
     def start(self):
         """Start websocket."""
@@ -62,12 +64,13 @@ class SubscriptionManager:
         try:
             _LOGGER.debug("Starting")
             self.websocket = await websockets.connect(
-                self._url, subprotocols=["graphql-subscriptions"]
+                self._url, subprotocols=["graphql-subscriptions"],
+                extra_headers={'User-Agent': self._user_agent}
             )
             self._state = STATE_RUNNING
             _LOGGER.debug("Running")
             await self.websocket.send(
-                json.dumps({"type": "init", "payload": self._init_payload})
+                json.dumps({"type": "init", "payload": self._init_payload}),
             )
 
             k = 0
