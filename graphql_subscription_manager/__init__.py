@@ -3,9 +3,11 @@
 import asyncio
 import json
 import logging
+import socket
 import sys
 from time import time
 
+import pkg_resources
 import websockets
 
 _LOGGER = logging.getLogger(__name__)
@@ -13,6 +15,11 @@ _LOGGER = logging.getLogger(__name__)
 STATE_STARTING = "starting"
 STATE_RUNNING = "running"
 STATE_STOPPED = "stopped"
+
+try:
+    VERSION = pkg_resources.require("pyTibber")[0].version
+except pkg_resources.DistributionNotFound:
+    VERSION = 'dev'
 
 
 class SubscriptionManager:
@@ -34,7 +41,7 @@ class SubscriptionManager:
         self._init_payload = init_payload
         self._show_connection_error = True
         self._is_running = False
-        self._user_agent = 'Python/{0[0]}.{0[1]} PyGraphqlWebsocketManager'.format(sys.version_info)
+        self._user_agent = 'Python/{0[0]}.{0[1]} PyGraphqlWebsocketManager/{1}'.format(sys.version_info, VERSION)
 
     def start(self):
         """Start websocket."""
@@ -104,7 +111,7 @@ class SubscriptionManager:
                 self._is_running = True
                 await self._process_msg(msg)
                 self._show_connection_error = True
-        except websockets.exceptions.InvalidStatusCode:
+        except (websockets.exceptions.InvalidStatusCode, socket.gaierror):
             if self._show_connection_error:
                 _LOGGER.error("Connection error", exc_info=True)
                 self._show_connection_error = False
