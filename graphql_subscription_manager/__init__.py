@@ -3,11 +3,11 @@
 import asyncio
 import json
 import logging
-import pkg_resources
+import socket
 import sys
 from time import time
 
-import socket
+import pkg_resources
 import websockets
 
 _LOGGER = logging.getLogger(__name__)
