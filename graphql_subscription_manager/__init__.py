@@ -18,7 +18,7 @@ STATE_STOPPED = "stopped"
 
 try:
     VERSION = pkg_resources.require("graphql-subscription-manager")[0].version
-except Exception:
+except Exception:  # pylint: disable=broad-except
     VERSION = 'dev'
 
 
