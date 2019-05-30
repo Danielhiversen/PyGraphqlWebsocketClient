@@ -17,8 +17,8 @@ STATE_RUNNING = "running"
 STATE_STOPPED = "stopped"
 
 try:
-    VERSION = pkg_resources.require("pyTibber")[0].version
-except pkg_resources.DistributionNotFound:
+    VERSION = pkg_resources.require("graphql-subscription-manager")[0].version
+except Exception:
     VERSION = 'dev'
 
 
