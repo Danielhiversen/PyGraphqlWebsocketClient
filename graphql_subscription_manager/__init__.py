@@ -181,9 +181,20 @@ class SubscriptionManager:
             "Reconnecting to server in %i seconds.", self._wait_time_before_retry
         )
 
-    async def subscribe(self, sub_query, callback):
+    async def subscribe(self, sub_query, callback, timeout=3):
         """Add a new subscription."""
-        while True:
+        current_session_id = self._session_id
+        self._session_id += 1
+        subscription = {
+            "query": sub_query,
+            "type": "subscription_start",
+            "id": current_session_id,
+        }
+        json_subscription = json.dumps(subscription)
+        self.subscriptions[current_session_id] = (callback, sub_query)
+
+        start_time = time()
+        while time() - start_time < timeout:
             if (
                 self.websocket is None
                 or not self.websocket.open
@@ -192,16 +203,7 @@ class SubscriptionManager:
                 await asyncio.sleep(1, loop=self.loop)
                 continue
 
-            current_session_id = self._session_id
-            self._session_id += 1
-            subscription = {
-                "query": sub_query,
-                "type": "subscription_start",
-                "id": current_session_id,
-            }
-            json_subscription = json.dumps(subscription)
             await self.websocket.send(json_subscription)
-            self.subscriptions[current_session_id] = (callback, sub_query)
             _LOGGER.debug("New subscription %s", current_session_id)
             return current_session_id
 
