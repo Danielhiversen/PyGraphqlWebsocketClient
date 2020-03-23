@@ -19,7 +19,7 @@ STATE_STOPPED = "stopped"
 try:
     VERSION = pkg_resources.require("graphql-subscription-manager")[0].version
 except Exception:  # pylint: disable=broad-except
-    VERSION = 'dev'
+    VERSION = "dev"
 
 
 class SubscriptionManager:
@@ -41,7 +41,9 @@ class SubscriptionManager:
         self._init_payload = init_payload
         self._show_connection_error = True
         self._is_running = False
-        self._user_agent = 'Python/{0[0]}.{0[1]} PyGraphqlWebsocketManager/{1}'.format(sys.version_info, VERSION)
+        self._user_agent = "Python/{0[0]}.{0[1]} PyGraphqlWebsocketManager/{1}".format(
+            sys.version_info, VERSION
+        )
 
     def start(self):
         """Start websocket."""
@@ -67,21 +69,24 @@ class SubscriptionManager:
     async def running(self):
         """Start websocket connection."""
         # pylint: disable=too-many-branches, too-many-statements
-        await self._close_websocket()
         try:
-            _LOGGER.debug("Starting")
-            self.websocket = await websockets.connect(
-                self._url, subprotocols=["graphql-subscriptions"],
-                extra_headers={'User-Agent': self._user_agent}
-            )
-            self._state = STATE_RUNNING
-            _LOGGER.debug("Running")
-            await self.websocket.send(
-                json.dumps({"type": "init", "payload": self._init_payload}),
-            )
-
             k = 0
-            while self._state == STATE_RUNNING:
+            while self._state in [STATE_RUNNING, STATE_STARTING]:
+                if self._state == STATE_STARTING:
+                    await self._close_websocket()
+
+                    _LOGGER.debug("Starting")
+                    self.websocket = await websockets.connect(
+                        self._url,
+                        subprotocols=["graphql-subscriptions"],
+                        extra_headers={"User-Agent": self._user_agent},
+                    )
+                    self._state = STATE_RUNNING
+                    _LOGGER.debug("Running")
+                    await self.websocket.send(
+                        json.dumps({"type": "init", "payload": self._init_payload}),
+                    )
+
                 try:
                     msg = await asyncio.wait_for(self.websocket.recv(), timeout=30)
                 except asyncio.TimeoutError:
@@ -90,8 +95,12 @@ class SubscriptionManager:
                         if self._show_connection_error:
                             _LOGGER.error("No data, reconnecting.")
                             self._show_connection_error = False
+                        else:
+                            _LOGGER.warning("No data, reconnecting.")
                         self._is_running = False
-                        return
+                        self._state = STATE_STARTING
+                        continue
+
                     _LOGGER.debug(
                         "No websocket data in 30 seconds, checking the connection."
                     )
@@ -104,13 +113,21 @@ class SubscriptionManager:
                                 "No response to ping in 10 seconds, reconnecting."
                             )
                             self._show_connection_error = False
+                        else:
+                            _LOGGER.warning(
+                                "No response to ping in 10 seconds, reconnecting."
+                            )
                         self._is_running = False
-                        return
+                        self._state = STATE_STARTING
+                        continue
+
                     continue
+
                 k = 0
                 self._is_running = True
                 await self._process_msg(msg)
                 self._show_connection_error = True
+
         except (websockets.exceptions.InvalidStatusCode, socket.gaierror):
             if self._show_connection_error:
                 _LOGGER.error("Connection error", exc_info=True)
@@ -232,10 +249,15 @@ class SubscriptionManager:
         _LOGGER.debug("Recv, %s", result)
 
         if result.get("type") == "init_fail":
-            if result.get("payload", {}).get("error") == 'Too many concurrent sockets for token':
+            if (
+                result.get("payload", {}).get("error")
+                == "Too many concurrent sockets for token"
+            ):
                 self._wait_time_before_retry = self._wait_time_before_retry * 2
                 if self._wait_time_before_retry >= 120:
-                    _LOGGER.error("Connection is closed, too many concurrent sockets for token")
+                    _LOGGER.error(
+                        "Connection is closed, too many concurrent sockets for token"
+                    )
                     self._state = STATE_STOPPED
                 self._wait_time_before_retry = min(self._wait_time_before_retry, 120)
                 return
