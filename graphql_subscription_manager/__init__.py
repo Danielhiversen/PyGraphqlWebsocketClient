@@ -69,24 +69,24 @@ class SubscriptionManager:
     async def running(self):
         """Start websocket connection."""
         # pylint: disable=too-many-branches, too-many-statements
+
+        await self._close_websocket()
+
+        _LOGGER.debug("Starting")
+        self.websocket = await websockets.connect(
+            self._url,
+            subprotocols=["graphql-subscriptions"],
+            extra_headers={"User-Agent": self._user_agent},
+        )
+        self._state = STATE_RUNNING
+        _LOGGER.debug("Running")
+        await self.websocket.send(
+            json.dumps({"type": "init", "payload": self._init_payload}),
+        )
+
         try:
             k = 0
-            while self._state in [STATE_RUNNING, STATE_STARTING]:
-                if self._state == STATE_STARTING:
-                    await self._close_websocket()
-
-                    _LOGGER.debug("Starting")
-                    self.websocket = await websockets.connect(
-                        self._url,
-                        subprotocols=["graphql-subscriptions"],
-                        extra_headers={"User-Agent": self._user_agent},
-                    )
-                    self._state = STATE_RUNNING
-                    _LOGGER.debug("Running")
-                    await self.websocket.send(
-                        json.dumps({"type": "init", "payload": self._init_payload}),
-                    )
-
+            while self._state == STATE_RUNNING:
                 try:
                     msg = await asyncio.wait_for(self.websocket.recv(), timeout=30)
                 except asyncio.TimeoutError:
@@ -98,8 +98,9 @@ class SubscriptionManager:
                         else:
                             _LOGGER.warning("No data, reconnecting.")
                         self._is_running = False
-                        self._state = STATE_STARTING
-                        continue
+                        _LOGGER.debug("Reconnecting")
+                        self._state = STATE_STOPPED
+                        self.retry()
 
                     _LOGGER.debug(
                         "No websocket data in 30 seconds, checking the connection."
@@ -118,8 +119,9 @@ class SubscriptionManager:
                                 "No response to ping in 10 seconds, reconnecting."
                             )
                         self._is_running = False
-                        self._state = STATE_STARTING
-                        continue
+                        _LOGGER.debug("Reconnecting")
+                        self._state = STATE_STOPPED
+                        self.retry()
 
                     continue
 
