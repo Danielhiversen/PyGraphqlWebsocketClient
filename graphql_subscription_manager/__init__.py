@@ -74,7 +74,7 @@ class SubscriptionManager:
 
         _LOGGER.debug("Starting")
         try:
-            self.websocket = asyncio.wait_for(await websockets.connect(
+            self.websocket = await asyncio.wait_for(websockets.connect(
                 self._url,
                 subprotocols=["graphql-subscriptions"],
                 extra_headers={"User-Agent": self._user_agent},
