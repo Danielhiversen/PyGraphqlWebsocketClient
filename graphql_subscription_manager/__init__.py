@@ -97,7 +97,7 @@ class SubscriptionManager:
                 timeout=30,
             )
         except Exception:  # pylint: disable=broad-except
-            _LOGGER.debug("Failed to connect. Reconnecting", exc_info=True)
+            _LOGGER.debug("Failed to connect. Reconnecting... ", exc_info=True)
             self._state = STATE_STOPPED
             self.retry()
             return
