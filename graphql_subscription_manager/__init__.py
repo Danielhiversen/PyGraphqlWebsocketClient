@@ -74,11 +74,14 @@ class SubscriptionManager:
 
         _LOGGER.debug("Starting")
         try:
-            self.websocket = await asyncio.wait_for(websockets.connect(
-                self._url,
-                subprotocols=["graphql-subscriptions"],
-                extra_headers={"User-Agent": self._user_agent},
-            ), timeout=30)
+            self.websocket = await asyncio.wait_for(
+                websockets.connect(
+                    self._url,
+                    subprotocols=["graphql-subscriptions"],
+                    extra_headers={"User-Agent": self._user_agent},
+                ),
+                timeout=30,
+            )
         except Exception:  # pylint: disable=broad-except
             _LOGGER.debug("Failed to connect. Reconnecting")
             self._state = STATE_STOPPED
@@ -88,7 +91,7 @@ class SubscriptionManager:
         self._state = STATE_RUNNING
         _LOGGER.debug("Running")
         await self.websocket.send(
-            json.dumps({"type": "init", "payload": self._init_payload}),
+            json.dumps({"type": "init", "payload": self._init_payload})
         )
 
         try:
