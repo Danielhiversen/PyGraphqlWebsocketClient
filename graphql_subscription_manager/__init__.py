@@ -22,22 +22,6 @@ except Exception:  # pylint: disable=broad-except
     VERSION = "dev"
 
 
-# simple wrapper to add timeout to websocket connection async context manager
-class WebSocketConnectWithTimeout(websockets.connect):
-    def __init__(self, *args, **kwargs):
-        self.connect_timeout = kwargs.pop("connect_timeout")
-        super(WebSocketConnectWithTimeout, self).__init__(*args, **kwargs)
-
-    async def __aenter__(self, *args, **kwargs):
-        return await asyncio.wait_for(
-            super(WebSocketConnectWithTimeout, self).__aenter__(*args, **kwargs),
-            timeout=self.connect_timeout,
-        )
-
-    async def __aexit__(self, *args, **kwargs):
-        return await super(WebSocketConnectWithTimeout, self).__aexit__(*args, **kwargs)
-
-
 class SubscriptionManager:
     """Subscription manager."""
 
@@ -90,11 +74,13 @@ class SubscriptionManager:
 
         _LOGGER.debug("Starting")
         try:
-            WebSocketConnectWithTimeout(
-                self._url,
-                subprotocols=["graphql-subscriptions"],
-                extra_headers={"User-Agent": self._user_agent},
-                connect_timeout=30,
+            self.websocket = await asyncio.wait_for(
+                websockets.connect(
+                    self._url,
+                    subprotocols=["graphql-subscriptions"],
+                    extra_headers={"User-Agent": self._user_agent},
+                ),
+                timeout=30,
             )
         except Exception:  # pylint: disable=broad-except
             _LOGGER.debug("Failed to connect. Reconnecting... ", exc_info=True)
