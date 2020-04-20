@@ -270,8 +270,7 @@ class SubscriptionManager:
                     _LOGGER.error(
                         "Connection is closed, too many concurrent sockets for token"
                     )
-                    self._state = STATE_STOPPED
-                self._wait_time_before_retry = min(self._wait_time_before_retry, 120)
+                self._wait_time_before_retry = min(self._wait_time_before_retry, 600)
                 return
             _LOGGER.error(result.get("payload", {}).get("error"))
             return
