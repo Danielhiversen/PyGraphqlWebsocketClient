@@ -181,6 +181,8 @@ class SubscriptionManager:
             await asyncio.sleep(0.1, loop=self.loop)
 
         self._state = STATE_STOPPED
+        await self._close_websocket()
+
         while (
             timeout > 0
             and self.websocket is not None
@@ -189,7 +191,6 @@ class SubscriptionManager:
         ):
             await asyncio.sleep(0.1, loop=self.loop)
 
-        await self._close_websocket()
         self._cancel_client_task()
         _LOGGER.debug("Server connection is stopped")
 
