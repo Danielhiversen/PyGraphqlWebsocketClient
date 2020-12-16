@@ -68,8 +68,8 @@ class SubscriptionManager:
     async def running(self):
         """Start websocket connection."""
         # pylint: disable=too-many-branches, too-many-statements
-
         _LOGGER.debug("Starting")
+
         try:
             self.websocket = await asyncio.wait_for(
                 websockets.connect(
@@ -90,25 +90,21 @@ class SubscriptionManager:
         self._state = STATE_RUNNING
 
         try:
+            k = 0
+
             await self.websocket.send(
                 json.dumps({
                     "type": "init",
                     "payload": self._init_payload
                 }))
 
-            k = 0
             while self._state == STATE_RUNNING:
                 try:
                     msg = await asyncio.wait_for(self.websocket.recv(),
                                                  timeout=30)
                 except asyncio.TimeoutError:
-                    k += 1
-                    if k > 10:
-                        if self._show_connection_error:
-                            _LOGGER.error("No data, reconnecting.")
-                            self._show_connection_error = False
-                        else:
-                            _LOGGER.warning("No data, reconnecting.")
+                    if k > 30:
+                        _LOGGER.error("No data, reconnecting.")
                         self._is_running = False
                         _LOGGER.debug("Reconnecting")
                         self._state = STATE_STOPPED
@@ -129,6 +125,7 @@ class SubscriptionManager:
                         self._state = STATE_STOPPED
                         self.retry()
 
+                    k += 1
                     continue
 
                 self._is_running = True
