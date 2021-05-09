@@ -27,9 +27,9 @@ class SubscriptionManager:
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, loop, init_payload, url):
+    def __init__(self, init_payload, url):
         """Create resources for websocket communication."""
-        self.loop = loop
+        self.loop = asyncio.get_running_loop()
         self.subscriptions = {}
         self._url = url
         self._state = None
@@ -178,7 +178,7 @@ class SubscriptionManager:
             and not self.subscriptions
             and (time() - start_time) < timeout / 2
         ):
-            await asyncio.sleep(0.1, loop=self.loop)
+            await asyncio.sleep(0.1)
 
         self._state = STATE_STOPPED
         await self._close_websocket()
@@ -189,7 +189,7 @@ class SubscriptionManager:
             and not self.websocket.closed
             and (time() - start_time) < timeout
         ):
-            await asyncio.sleep(0.1, loop=self.loop)
+            await asyncio.sleep(0.1)
 
         self._cancel_client_task()
         _LOGGER.debug("Server connection is stopped")
@@ -230,7 +230,7 @@ class SubscriptionManager:
                 or not self.websocket.open
                 or not self._state == STATE_RUNNING
             ):
-                await asyncio.sleep(1, loop=self.loop)
+                await asyncio.sleep(1)
                 continue
 
             await self.websocket.send(json_subscription)
