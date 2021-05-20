@@ -29,7 +29,10 @@ class SubscriptionManager:
 
     def __init__(self, init_payload, url):
         """Create resources for websocket communication."""
-        self.loop = asyncio.get_running_loop()
+        try:
+            self.loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self.loop = asyncio.get_event_loop()
         self.subscriptions = {}
         self._url = url
         self._state = None
