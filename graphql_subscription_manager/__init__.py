@@ -118,10 +118,10 @@ class SubscriptionManager:
                     )
                     try:
                         pong_waiter = await self.websocket.ping()
-                        await asyncio.wait_for(pong_waiter, timeout=10)
+                        await asyncio.wait_for(pong_waiter, timeout=3)
                     except asyncio.TimeoutError:
                         _LOGGER.error(
-                            "No response to ping in 10 seconds, reconnecting."
+                            "No response to ping in 3 seconds, reconnecting."
                         )
                         self._is_running = False
                         _LOGGER.debug("Reconnecting")
