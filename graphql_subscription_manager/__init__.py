@@ -27,9 +27,12 @@ class SubscriptionManager:
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, loop, init_payload, url):
+    def __init__(self, init_payload, url):
         """Create resources for websocket communication."""
-        self.loop = loop
+        try:
+            self.loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self.loop = asyncio.get_event_loop()
         self.subscriptions = {}
         self._url = url
         self._state = None
@@ -170,6 +173,7 @@ class SubscriptionManager:
         while (timeout > 0 and self.websocket is not None
                and not self.websocket.closed
                and (time() - start_time) < timeout):
+
             await asyncio.sleep(0.1)
 
         self._cancel_client_task()
