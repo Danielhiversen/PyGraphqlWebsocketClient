@@ -298,7 +298,13 @@ class SubscriptionManager:
 
         self._wait_time_before_retry = 15
 
-        await callback(data)
+        try:
+            await callback(data)
+        except TypeError as exp:
+            if "object NoneType can't be used in 'await' expression"  in str(exp):
+                callback(data)
+                return
+            raise exp
 
     def _cancel_retry_timer(self):
         if self._retry_timer is None:
