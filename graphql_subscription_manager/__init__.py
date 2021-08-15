@@ -114,7 +114,7 @@ class SubscriptionManager:
                         self.retry()
 
                     _LOGGER.debug(
-                        "No websocket data in 30 seconds, checking the connection."
+                        "No websocket data in 30 seconds, sending a ping."
                     )
                     try:
                         pong_waiter = await self.websocket.ping()
@@ -134,9 +134,7 @@ class SubscriptionManager:
                 k = 0
                 await self._process_msg(msg)
 
-        except (websockets.exceptions.InvalidStatusCode, socket.gaierror):
-            _LOGGER.error("Connection error", exc_info=True)
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.InvalidStatusCode, socket.gaierror, websockets.exceptions.ConnectionClosed):
             if self._state != STATE_STOPPED:
                 _LOGGER.error("Connection error", exc_info=True)
             else:
