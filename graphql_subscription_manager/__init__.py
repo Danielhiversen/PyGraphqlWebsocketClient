@@ -104,7 +104,7 @@ class SubscriptionManager:
             while self._state == STATE_RUNNING:
                 try:
                     msg = await asyncio.wait_for(self.websocket.recv(),
-                                                 timeout=15)
+                                                 timeout=60)
                 except asyncio.TimeoutError:
                     if k > 30:
                         _LOGGER.error("No data, reconnecting.")
@@ -128,7 +128,6 @@ class SubscriptionManager:
                         self._state = STATE_STOPPED
                         self.retry()
 
-                    k += 1
                     continue
 
                 self._is_running = True
