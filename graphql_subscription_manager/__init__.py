@@ -273,7 +273,7 @@ class SubscriptionManager:
             return
 
         self._wait_time_before_retry = 15
-        await callback(data)
+        callback(data)
 
     def _cancel_retry_timer(self):
         if self._retry_timer is None:
