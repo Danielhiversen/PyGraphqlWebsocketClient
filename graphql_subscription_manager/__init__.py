@@ -104,9 +104,9 @@ class SubscriptionManager:
             while self._state == STATE_RUNNING:
                 try:
                     msg = await asyncio.wait_for(self.websocket.recv(),
-                                                 timeout=60)
+                                                 timeout=30)
                 except asyncio.TimeoutError:
-                    if k > 30:
+                    if k > 2:
                         _LOGGER.debug("No data, reconnecting.")
                         self._is_running = False
                         _LOGGER.debug("Reconnecting")
@@ -243,18 +243,7 @@ class SubscriptionManager:
         _LOGGER.debug("Recv, %s", result)
 
         if result.get("type") == "init_fail":
-            if (result.get(
-                    "payload",
-                    {}).get("error") == "Too many concurrent sockets for token"):
-                self._wait_time_before_retry = self._wait_time_before_retry * 2
-                if self._wait_time_before_retry >= 120:
-                    _LOGGER.error(
-                        "Connection is closed, too many concurrent sockets for token"
-                    )
-                self._wait_time_before_retry = min(
-                    self._wait_time_before_retry, 600)
-                return
-            _LOGGER.error(result.get("payload", {}).get("error"))
+            _LOGGER.error(result.get("type"))
             return
 
         subscription_id = result.get("id")
