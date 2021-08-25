@@ -128,6 +128,8 @@ class SubscriptionManager:
                         self._state = STATE_STOPPED
                         self.retry()
 
+                    k += 1
+
                     continue
 
                 self._is_running = True
