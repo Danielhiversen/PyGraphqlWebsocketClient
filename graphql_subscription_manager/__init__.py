@@ -246,7 +246,9 @@ class SubscriptionManager:
         """Process received msg."""
         result = json.loads(msg)
 
-        if result.get("type") == "init_fail":
+        msg_type = result.get("type", "")
+        if msg_type == "init_fail":
+            _LOGGER.debug(msg_type)
             return
 
         subscription_id = result.get("id")
@@ -258,7 +260,7 @@ class SubscriptionManager:
             _LOGGER.debug("Unknown id %s.", subscription_id)
             return
 
-        if result.get("type", "") == "complete":
+        if msg_type == "complete":
             _LOGGER.debug("Unsubscribe %s successfully.", subscription_id)
             return
 
@@ -266,7 +268,6 @@ class SubscriptionManager:
         if data is None:
             return
 
-        self._wait_time_before_retry = 15
         callback(data)
 
     def _cancel_retry_timer(self):
