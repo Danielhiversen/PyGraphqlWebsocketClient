@@ -240,10 +240,8 @@ class SubscriptionManager:
     async def _process_msg(self, msg):
         """Process received msg."""
         result = json.loads(msg)
-        _LOGGER.debug("Recv, %s", result)
 
         if result.get("type") == "init_fail":
-            _LOGGER.error(result.get("type"))
             return
 
         subscription_id = result.get("id")
