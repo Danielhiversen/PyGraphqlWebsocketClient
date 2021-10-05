@@ -71,7 +71,6 @@ class SubscriptionManager:
     async def running(self):
         """Start websocket connection."""
         # pylint: disable=too-many-branches, too-many-statements
-        _LOGGER.debug("Starting")
 
         try:
             self.websocket = await asyncio.wait_for(
@@ -90,6 +89,7 @@ class SubscriptionManager:
 
         _LOGGER.debug("Running")
 
+        _LOGGER.debug("Starting")
         self._state = STATE_RUNNING
 
         try:
