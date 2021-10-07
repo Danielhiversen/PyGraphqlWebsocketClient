@@ -86,28 +86,20 @@ class SubscriptionManager:
 
         try:
 
-            await self.websocket.send(
-                json.dumps({
-                    "type": "init",
-                    "payload": self._init_payload
-                }))
-
             await self._running_loop()
 
-        except (websockets.exceptions.InvalidStatusCode, socket.gaierror, websockets.exceptions.ConnectionClosed):
+        except Exception:  # pylint: disable=broad-except
             if self._state != STATE_STOPPED:
                 _LOGGER.error("Connection error", exc_info=True)
             else:
                 _LOGGER.debug("Connection error", exc_info=True)
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.error("Unexpected error", exc_info=True)
         finally:
-            await self._close_websocket()
-            if self._state != STATE_STOPPED:
-                _LOGGER.debug("Reconnecting")
-                self._state = STATE_STOPPED
-                self.retry()
             _LOGGER.debug("Closing running task.")
+            if self._state == STATE_STOPPED:
+                return
+            _LOGGER.debug("Reconnecting")
+            self._state = STATE_STOPPED
+            self.retry()
 
     async def _init_web_socket(self):
         self.websocket = await asyncio.wait_for(
@@ -118,6 +110,11 @@ class SubscriptionManager:
             ),
             timeout=30,
         )
+        await self.websocket.send(
+            json.dumps({
+                "type": "init",
+                "payload": self._init_payload
+            }))
 
     async def _running_loop(self):
         k = 0
@@ -126,15 +123,16 @@ class SubscriptionManager:
                 msg = await asyncio.wait_for(self.websocket.recv(),
                                              timeout=30)
             except asyncio.TimeoutError:
-                if k > 10:
+                if k > 60:
                     _LOGGER.debug("No data, reconnecting.")
                     self._is_running = False
                     _LOGGER.debug("Reconnecting")
                     self._state = STATE_STOPPED
                     self.retry()
+                    return
 
                 _LOGGER.debug(
-                    "No websocket data in 30 seconds, sending a ping."
+                    "No websocket data, sending a ping."
                 )
                 try:
                     pong_waiter = await self.websocket.ping()
@@ -150,11 +148,10 @@ class SubscriptionManager:
 
                 k += 1
 
-                continue
-
-            self._is_running = True
-            k = 0
-            await self._process_msg(msg)
+            else:
+                self._is_running = True
+                k = 0
+                await self._process_msg(msg)
 
     async def stop(self, timeout=10):
         """Close websocket connection."""
