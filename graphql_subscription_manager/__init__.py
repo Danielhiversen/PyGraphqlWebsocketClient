@@ -113,7 +113,7 @@ class SubscriptionManager:
         await self.websocket.send(
             json.dumps({
                 "type": "init",
-                "payload": self._init_payload
+                "payload": self._init_payload,
             }))
 
     async def _running_loop(self):
@@ -131,9 +131,7 @@ class SubscriptionManager:
                     self.retry()
                     return
 
-                _LOGGER.debug(
-                    "No websocket data, sending a ping."
-                )
+                _LOGGER.debug("No websocket data, sending a ping.")
                 try:
                     pong_waiter = await self.websocket.ping()
                     await asyncio.wait_for(pong_waiter, timeout=3)
@@ -217,6 +215,7 @@ class SubscriptionManager:
             await self.websocket.send(json_subscription)
             _LOGGER.debug("New subscription %s", current_session_id)
             return current_session_id
+        return None
 
     async def unsubscribe(self, subscription_id):
         """Unsubscribe."""
