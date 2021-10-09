@@ -42,7 +42,6 @@ class SubscriptionManager:
         self._wait_time_before_retry = 15
         self._session_id = 0
         self._init_payload = init_payload
-        self._is_running = False
         self._user_agent = "Python/{0[0]}.{0[1]} PyGraphqlWebsocketManager/{1}".format(
             sys.version_info, VERSION)
 
@@ -66,7 +65,7 @@ class SubscriptionManager:
     @property
     def is_running(self):
         """Return if client is running or not."""
-        return self._is_running
+        return self._state == STATE_STARTING
 
     async def running(self):
         """Start websocket connection."""
@@ -125,7 +124,6 @@ class SubscriptionManager:
             except asyncio.TimeoutError:
                 if k > 60:
                     _LOGGER.debug("No data, reconnecting.")
-                    self._is_running = False
                     _LOGGER.debug("Reconnecting")
                     self._state = STATE_STOPPED
                     self.retry()
@@ -139,7 +137,6 @@ class SubscriptionManager:
                     _LOGGER.error(
                         "No response to ping in 3 seconds, reconnecting."
                     )
-                    self._is_running = False
                     _LOGGER.debug("Reconnecting")
                     self._state = STATE_STOPPED
                     self.retry()
@@ -147,7 +144,6 @@ class SubscriptionManager:
                 k += 1
 
             else:
-                self._is_running = True
                 k = 0
                 await self._process_msg(msg)
 
