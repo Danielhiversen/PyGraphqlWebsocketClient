@@ -65,7 +65,7 @@ class SubscriptionManager:
     @property
     def is_running(self):
         """Return if client is running or not."""
-        return self._state == STATE_STARTING
+        return self._state == STATE_RUNNING
 
     async def running(self):
         """Start websocket connection."""
