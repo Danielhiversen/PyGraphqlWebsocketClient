@@ -39,7 +39,6 @@ class SubscriptionManager:
         self.websocket = None
         self._retry_timer = None
         self._client_task = None
-        self._wait_time_before_retry = 1
         self._session_id = 0
         self._init_payload = init_payload
         self._user_agent = "Python/{0[0]}.{0[1]} PyGraphqlWebsocketManager/{1}".format(
@@ -48,7 +47,7 @@ class SubscriptionManager:
     def start(self):
         """Start websocket."""
         _LOGGER.debug("Start state %s.", self._state)
-        if self._state == STATE_RUNNING:
+        if self.is_running:
             return
         self._state = STATE_STARTING
         self._cancel_client_task()
@@ -80,7 +79,6 @@ class SubscriptionManager:
             return
 
         _LOGGER.debug("Running")
-
         self._state = STATE_RUNNING
 
         try:
@@ -135,10 +133,8 @@ class SubscriptionManager:
         self._cancel_retry_timer()
         self._state = STATE_STARTING
         _LOGGER.debug("Restart")
-        self._retry_timer = self.loop.call_later(self._wait_time_before_retry,
-                                                 self.start)
-        _LOGGER.debug("Reconnecting to server in %i seconds.",
-                      self._wait_time_before_retry)
+        self._retry_timer = self.loop.call_soon(self.start)
+        _LOGGER.debug("Reconnecting to server.")
 
     async def subscribe(self, sub_query, callback, timeout=3):
         """Add a new subscription."""
@@ -155,7 +151,7 @@ class SubscriptionManager:
         start_time = time()
         while time() - start_time < timeout:
             if (self.websocket is None or not self.websocket.open
-                    or not self._state == STATE_RUNNING):
+                    or not self.is_running):
                 await asyncio.sleep(1)
                 continue
 
@@ -247,7 +243,7 @@ class SubscriptionManager:
 
     async def _running_loop(self):
         k = 0
-        while self._state == STATE_RUNNING:
+        while self.is_running:
             try:
                 msg = await asyncio.wait_for(self.websocket.recv(),
                                              timeout=30)
