@@ -39,7 +39,7 @@ class SubscriptionManager:
         self.websocket = None
         self._retry_timer = None
         self._client_task = None
-        self._wait_time_before_retry = 15
+        self._wait_time_before_retry = 1
         self._session_id = 0
         self._init_payload = init_payload
         self._user_agent = "Python/{0[0]}.{0[1]} PyGraphqlWebsocketManager/{1}".format(
@@ -84,9 +84,7 @@ class SubscriptionManager:
         self._state = STATE_RUNNING
 
         try:
-
             await self._running_loop()
-
         except Exception:  # pylint: disable=broad-except
             if self._state != STATE_STOPPED:
                 _LOGGER.error("Connection error", exc_info=True)
@@ -100,60 +98,13 @@ class SubscriptionManager:
             self._state = STATE_STOPPED
             self.retry()
 
-    async def _init_web_socket(self):
-        self.websocket = await asyncio.wait_for(
-            websockets.connect(
-                self._url,
-                subprotocols=["graphql-subscriptions"],
-                extra_headers={"User-Agent": self._user_agent},
-            ),
-            timeout=30,
-        )
-        await self.websocket.send(
-            json.dumps({
-                "type": "init",
-                "payload": self._init_payload,
-            }))
-
-    async def _running_loop(self):
-        k = 0
-        while self._state == STATE_RUNNING:
-            try:
-                msg = await asyncio.wait_for(self.websocket.recv(),
-                                             timeout=20)
-            except asyncio.TimeoutError:
-                if k > 3*30:
-                    _LOGGER.debug("No data, reconnecting.")
-                    _LOGGER.debug("Reconnecting")
-                    self._state = STATE_STOPPED
-                    self.retry()
-                    return
-
-                _LOGGER.debug("No websocket data, sending a ping.")
-                try:
-                    pong_waiter = await self.websocket.ping()
-                    await asyncio.wait_for(pong_waiter, timeout=3)
-                except asyncio.TimeoutError:
-                    _LOGGER.error(
-                        "No response to ping in 3 seconds, reconnecting."
-                    )
-                    _LOGGER.debug("Reconnecting")
-                    self._state = STATE_STOPPED
-                    self.retry()
-
-                k += 1
-
-            else:
-                k = 0
-                await self._process_msg(msg)
-
-    async def stop(self, timeout=10):
+    async def stop(self, timeout=100):
         """Close websocket connection."""
         _LOGGER.debug("Stopping client.")
         start_time = time()
         self._cancel_retry_timer()
 
-        for subscription_id in range(len(self.subscriptions)):
+        for subscription_id in self.subscriptions.copy().keys():
             _LOGGER.debug("Sending unsubscribe: %s", subscription_id)
             await self.unsubscribe(subscription_id)
 
@@ -277,3 +228,51 @@ class SubscriptionManager:
             self._client_task.cancel()
         finally:
             self._client_task = None
+
+
+    async def _init_web_socket(self):
+        self.websocket = await asyncio.wait_for(
+            websockets.connect(
+                self._url,
+                subprotocols=["graphql-subscriptions"],
+                extra_headers={"User-Agent": self._user_agent},
+            ),
+            timeout=30,
+        )
+        await self.websocket.send(
+            json.dumps({
+                "type": "init",
+                "payload": self._init_payload,
+            }))
+
+    async def _running_loop(self):
+        k = 0
+        while self._state == STATE_RUNNING:
+            try:
+                msg = await asyncio.wait_for(self.websocket.recv(),
+                                             timeout=30)
+            except asyncio.TimeoutError:
+                if k > 60:
+                    _LOGGER.debug("No data, reconnecting.")
+                    _LOGGER.debug("Reconnecting")
+                    self._state = STATE_STOPPED
+                    self.retry()
+                    return
+
+                _LOGGER.debug("No websocket data, sending a ping.")
+                try:
+                    pong_waiter = await self.websocket.ping()
+                    await asyncio.wait_for(pong_waiter, timeout=3)
+                except asyncio.TimeoutError:
+                    _LOGGER.error(
+                        "No response to ping in 3 seconds, reconnecting."
+                    )
+                    _LOGGER.debug("Reconnecting")
+                    self._state = STATE_STOPPED
+                    self.retry()
+
+                k += 1
+
+            else:
+                k = 0
+                await self._process_msg(msg)
