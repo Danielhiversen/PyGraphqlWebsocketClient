@@ -96,7 +96,7 @@ class SubscriptionManager:
             self._state = STATE_STOPPED
             self.retry()
 
-    async def stop(self, timeout=100):
+    async def stop(self, timeout=10):
         """Close websocket connection."""
         _LOGGER.debug("Stopping client.")
         start_time = time()
