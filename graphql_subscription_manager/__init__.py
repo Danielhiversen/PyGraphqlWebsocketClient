@@ -250,7 +250,6 @@ class SubscriptionManager:
             except asyncio.TimeoutError:
                 if k > 60:
                     _LOGGER.debug("No data, reconnecting.")
-                    _LOGGER.debug("Reconnecting")
                     self._state = STATE_STOPPED
                     self.retry()
                     return
