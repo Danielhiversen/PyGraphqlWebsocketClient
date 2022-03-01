@@ -4,4 +4,3 @@
 
 Python code for graphql websocket client.
 
-Used by https://github.com/Danielhiversen/pyTibber
