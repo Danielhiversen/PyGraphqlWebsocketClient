@@ -15,7 +15,6 @@ setup(
     author="Daniel Hjelseth Høyer",
     author_email="mail@dahoiv.net",
     url="https://github.com/Danielhiversen/PyGraphqlWebsocketManager",
-    license="MIT",
     classifiers=[
         "Intended Audience :: Developers",
         "Operating System :: OS Independent",
