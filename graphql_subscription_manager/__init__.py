@@ -71,16 +71,12 @@ class SubscriptionManager:
         try:
             await self._running_loop()
         except Exception:  # pylint: disable=broad-except
-            if self._state != STATE_STOPPED:
-                _LOGGER.error("Connection error", exc_info=True)
-            else:
-                _LOGGER.debug("Connection error", exc_info=True)
-        finally:
-            _LOGGER.debug("Closing running task.")
             if self._state == STATE_STOPPED:
-                return
-            _LOGGER.debug("Reconnecting")
-            self.retry()
+                _LOGGER.debug("Connection error", exc_info=True)
+                self.retry()
+            else:
+                _LOGGER.error("Connection error", exc_info=True)
+
 
     async def stop(self):
         """Close websocket connection."""
