@@ -82,7 +82,7 @@ class SubscriptionManager:
             _LOGGER.debug("Reconnecting")
             self.retry()
 
-    async def stop(self, timeout=10):
+    async def stop(self):
         """Close websocket connection."""
         _LOGGER.debug("Stopping client.")
         start_time = time()
@@ -149,7 +149,7 @@ class SubscriptionManager:
         finally:
             self.websocket = None
 
-    async def _process_msg(self, msg):
+    def _process_msg(self, msg):
         """Process received msg."""
         result = json.loads(msg)
 
@@ -229,7 +229,6 @@ class SubscriptionManager:
                     self.retry()
 
                 k += 1
-
-            else:
-                k = 0
-                await self._process_msg(msg)
+                continue
+            k = 0
+            self._process_msg(msg)
