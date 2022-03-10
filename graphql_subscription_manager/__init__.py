@@ -63,13 +63,11 @@ class SubscriptionManager:
             await self._init_web_socket()
         except Exception:  # pylint: disable=broad-except
             _LOGGER.debug("Failed to connect. Reconnecting... ", exc_info=True)
-            self._state = STATE_STOPPED
             self.retry()
             return
 
         _LOGGER.debug("Running")
         self._state = STATE_RUNNING
-
         try:
             await self._running_loop()
         except Exception:  # pylint: disable=broad-except
@@ -82,7 +80,6 @@ class SubscriptionManager:
             if self._state == STATE_STOPPED:
                 return
             _LOGGER.debug("Reconnecting")
-            self._state = STATE_STOPPED
             self.retry()
 
     async def stop(self, timeout=10):
@@ -121,10 +118,6 @@ class SubscriptionManager:
     def retry(self):
         """Retry to connect to websocket."""
         _LOGGER.debug("Retry, state: %s", self._state)
-        if self._state in [STATE_STARTING, STATE_RUNNING]:
-            _LOGGER.debug("Skip retry since state: %s", self._state)
-            return
-        _LOGGER.debug("Cancel retry timer")
         self._cancel_retry_timer()
         self._state = STATE_STARTING
         _LOGGER.debug("Restart")
@@ -241,7 +234,6 @@ class SubscriptionManager:
             except asyncio.TimeoutError:
                 if k > 180:
                     _LOGGER.debug("No data, reconnecting.")
-                    self._state = STATE_STOPPED
                     self.retry()
                     return
 
@@ -251,7 +243,6 @@ class SubscriptionManager:
                     await asyncio.wait_for(pong_waiter, timeout=3)
                 except asyncio.TimeoutError:
                     _LOGGER.error("No response to ping, reconnecting.")
-                    self._state = STATE_STOPPED
                     self.retry()
 
                 k += 1
