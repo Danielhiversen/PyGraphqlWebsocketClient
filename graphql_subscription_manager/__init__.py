@@ -226,5 +226,6 @@ class SubscriptionManager:
 
                 k += 1
                 continue
-            k = 0
-            self._process_msg(msg)
+            else:
+                k = 0
+                await self._process_msg(msg)
