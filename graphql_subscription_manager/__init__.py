@@ -92,25 +92,8 @@ class SubscriptionManager:
             _LOGGER.debug("Sending unsubscribe: %s", subscription_id)
             await self.unsubscribe(subscription_id)
 
-        while (
-            timeout > 0
-            and self.websocket is not None
-            and not self.subscriptions
-            and (time() - start_time) < timeout / 2
-        ):
-            await asyncio.sleep(0.1)
-
         self._state = STATE_STOPPED
         await self._close_websocket()
-
-        while (
-            timeout > 0
-            and self.websocket is not None
-            and not self.websocket.closed
-            and (time() - start_time) < timeout
-        ):
-
-            await asyncio.sleep(0.1)
 
         self._cancel_client_task()
         _LOGGER.debug("Server connection is stopped")
@@ -230,9 +213,9 @@ class SubscriptionManager:
         k = 0
         while self.is_running:
             try:
-                msg = await asyncio.wait_for(self.websocket.recv(), timeout=10)
+                msg = await asyncio.wait_for(self.websocket.recv(), timeout=30)
             except asyncio.TimeoutError:
-                if k > 180:
+                if k > 10:
                     _LOGGER.debug("No data, reconnecting.")
                     self.retry()
                     return
