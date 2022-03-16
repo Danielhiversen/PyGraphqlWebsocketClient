@@ -209,7 +209,7 @@ class SubscriptionManager:
         k = 0
         while self.is_running:
             try:
-                msg = await asyncio.wait_for(self.websocket.recv(), timeout=20)
+                msg = await asyncio.wait_for(self.websocket.recv(), timeout=10)
             except asyncio.TimeoutError:
                 k += 1
                 if k > 5:
@@ -225,6 +225,5 @@ class SubscriptionManager:
                     _LOGGER.error("No response to ping, reconnecting.")
                     self.retry()
 
-            else:
-                k = 0
-                self._process_msg(msg)
+            k = 0
+            self._process_msg(msg)
