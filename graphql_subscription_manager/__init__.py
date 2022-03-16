@@ -194,7 +194,7 @@ class SubscriptionManager:
                 self._url,
                 subprotocols=["graphql-subscriptions"],
             ),
-            timeout=30,
+            timeout=10,
         )
         await self.websocket.send(
             json.dumps(
@@ -209,7 +209,7 @@ class SubscriptionManager:
         k = 0
         while self.is_running:
             try:
-                msg = await asyncio.wait_for(self.websocket.recv(), timeout=30)
+                msg = await asyncio.wait_for(self.websocket.recv(), timeout=20)
             except asyncio.TimeoutError:
                 k += 1
                 if k > 5:
