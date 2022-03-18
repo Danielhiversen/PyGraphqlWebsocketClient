@@ -212,6 +212,6 @@ class SubscriptionManager:
                     return
                 _LOGGER.debug("No websocket data, sending a ping.")
                 await asyncio.wait_for(await self.websocket.ping(), timeout=10)
-                continue
-            k = 0
-            self._process_msg(msg)
+            else:
+                k = 0
+                self._process_msg(msg)
