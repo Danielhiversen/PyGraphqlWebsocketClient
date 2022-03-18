@@ -218,12 +218,7 @@ class SubscriptionManager:
                     return
 
                 _LOGGER.debug("No websocket data, sending a ping.")
-                try:
-                    pong_waiter = await self.websocket.ping()
-                    await asyncio.wait_for(pong_waiter, timeout=3)
-                except asyncio.TimeoutError:
-                    _LOGGER.error("No response to ping, reconnecting.")
-                    self.retry()
+                await asyncio.wait_for(await self.websocket.ping(), timeout=10)
 
             k = 0
             self._process_msg(msg)
