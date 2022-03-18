@@ -161,11 +161,10 @@ class SubscriptionManager:
         if (data := result.get("payload")) is None:
             return
 
-        callback, _ = self.subscriptions.get(subscription_id, (None, None))
-        if callback is None:
-            _LOGGER.debug("Unknown id %s.", subscription_id)
+        if subscription_id not in self.subscriptions:
+            _LOGGER.warning("Unknown id %s.", subscription_id)
             return
-        callback(data)
+        self.subscriptions[subscription_id][0](data)
 
     def _cancel_retry_timer(self):
         if self._retry_timer is None:
@@ -211,7 +210,6 @@ class SubscriptionManager:
                     _LOGGER.debug("No data, reconnecting.")
                     self.retry()
                     return
-
                 _LOGGER.debug("No websocket data, sending a ping.")
                 await asyncio.wait_for(await self.websocket.ping(), timeout=10)
                 continue
