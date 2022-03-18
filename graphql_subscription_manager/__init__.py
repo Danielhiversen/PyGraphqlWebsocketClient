@@ -77,7 +77,6 @@ class SubscriptionManager:
             else:
                 _LOGGER.error("Connection error", exc_info=True)
 
-
     async def stop(self):
         """Close websocket connection."""
         _LOGGER.debug("Stopping client.")
