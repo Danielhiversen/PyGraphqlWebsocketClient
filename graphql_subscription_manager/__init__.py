@@ -80,7 +80,6 @@ class SubscriptionManager:
     async def stop(self):
         """Close websocket connection."""
         _LOGGER.debug("Stopping client.")
-        start_time = time()
         self._cancel_retry_timer()
 
         for subscription_id in self.subscriptions.copy().keys():
@@ -117,7 +116,7 @@ class SubscriptionManager:
         start_time = time()
         while time() - start_time < timeout:
             if self.websocket is None or not self.websocket.open or not self.is_running:
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.1)
                 continue
 
             await self.websocket.send(json_subscription)
@@ -148,21 +147,18 @@ class SubscriptionManager:
         """Process received msg."""
         result = json.loads(msg)
 
-        msg_type = result.get("type", "")
-        if msg_type == "init_fail":
+        if (msg_type := result.get("type", "")) == "init_fail":
             _LOGGER.debug(msg_type)
             return
 
-        subscription_id = result.get("id")
-        if subscription_id is None:
+        if (subscription_id := result.get("id")) is None:
             return
 
         if msg_type == "complete":
             _LOGGER.debug("Unsubscribe %s successfully.", subscription_id)
             return
 
-        data = result.get("payload")
-        if data is None:
+        if (data := result.get("payload")) is None:
             return
 
         callback, _ = self.subscriptions.get(subscription_id, (None, None))
@@ -218,6 +214,6 @@ class SubscriptionManager:
 
                 _LOGGER.debug("No websocket data, sending a ping.")
                 await asyncio.wait_for(await self.websocket.ping(), timeout=10)
-
+                continue
             k = 0
             self._process_msg(msg)
