@@ -200,7 +200,7 @@ class SubscriptionManager:
             websockets.connect(
                 self._url,
                 subprotocols=["graphql-transport-ws"],
-                extra_headers={"User-Agent": self._user_agent},
+                extra_headers={"User-Agent": "Test Daniel"},
             ),
             timeout=10,
         )
@@ -208,7 +208,9 @@ class SubscriptionManager:
             json.dumps(
                 {
                     "type": "connection_init",
-                    "payload": self._init_payload,
+                    "payload": {
+                        "token": "476c477d8a039529478ebd690d35ddd80e3308ffc49b59c65b142321aee963a4"
+                    }
                 }
             )
         )
