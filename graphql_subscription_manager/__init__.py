@@ -38,7 +38,7 @@ class SubscriptionManager:
         self._client_task = None
         self._session_id = 0
         self._init_payload = init_payload
-        if user_agent is None:
+        if user_agent is not None:
             self._user_agent = user_agent
         else:
             self._user_agent = "Python/{0[0]}.{0[1]}".format(
