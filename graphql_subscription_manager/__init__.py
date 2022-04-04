@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import sys
 from time import time
 
 import websockets
@@ -13,13 +14,17 @@ STATE_STARTING = "starting"
 STATE_RUNNING = "running"
 STATE_STOPPED = "stopped"
 
+try:
+    VERSION = pkg_resources.require("graphql-subscription-manager")[0].version
+except Exception:  # pylint: disable=broad-except
+    VERSION = "dev"
 
 class SubscriptionManager:
     """Subscription manager."""
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, init_payload, url):
+    def __init__(self, init_payload, url, user_agent=None):
         """Create resources for websocket communication."""
         try:
             self.loop = asyncio.get_running_loop()
@@ -33,6 +38,13 @@ class SubscriptionManager:
         self._client_task = None
         self._session_id = 0
         self._init_payload = init_payload
+        if user_agent is None:
+            self._user_agent = user_agent
+        else:
+            self._user_agent = "Python/{0[0]}.{0[1]}".format(
+                sys.version_info
+            )
+        self._user_agent += f" graphql-subscription-manager/{VERSION}"
 
     def start(self):
         """Start websocket."""
@@ -107,8 +119,8 @@ class SubscriptionManager:
         self._session_id += 1
         subscription = {
             "query": sub_query,
-            "type": "subscription_start",
-            "id": current_session_id,
+            "type": "subscription",
+            "id": str(current_session_id),
         }
         json_subscription = json.dumps(subscription)
         self.subscriptions[current_session_id] = (callback, sub_query)
@@ -187,15 +199,15 @@ class SubscriptionManager:
         self.websocket = await asyncio.wait_for(
             websockets.connect(
                 self._url,
-                subprotocols=["graphql-subscriptions"],
-
+                subprotocols=["graphql-transport-ws"],
+                extra_headers={"User-Agent": self._user_agent},
             ),
             timeout=10,
         )
         await self.websocket.send(
             json.dumps(
                 {
-                    "type": "init",
+                    "type": "connection_init",
                     "payload": self._init_payload,
                 }
             )
