@@ -72,10 +72,10 @@ class SubscriptionManager:
             await self._running_loop()
         except Exception:  # pylint: disable=broad-except
             if self._state == STATE_STOPPED:
-                _LOGGER.debug("Connection error", exc_info=True)
-                self.retry()
+                _LOGGER.debug("Stopped, Connection error", exc_info=True)
             else:
                 _LOGGER.error("Connection error", exc_info=True)
+                self.retry()
 
     async def stop(self):
         """Close websocket connection."""
@@ -164,6 +164,7 @@ class SubscriptionManager:
         if subscription_id not in self.subscriptions:
             _LOGGER.warning("Unknown id %s.", subscription_id)
             return
+        _LOGGER.debug("Received data %s", data)
         self.subscriptions[subscription_id][0](data)
 
     def _cancel_retry_timer(self):
@@ -187,6 +188,7 @@ class SubscriptionManager:
             websockets.connect(
                 self._url,
                 subprotocols=["graphql-subscriptions"],
+
             ),
             timeout=10,
         )
@@ -203,7 +205,7 @@ class SubscriptionManager:
         k = 0
         while self.is_running:
             try:
-                msg = await asyncio.wait_for(self.websocket.recv(), timeout=10)
+                msg = await asyncio.wait_for(self.websocket.recv(), timeout=60)
             except asyncio.TimeoutError:
                 k += 1
                 if k > 5:
@@ -211,7 +213,7 @@ class SubscriptionManager:
                     self.retry()
                     return
                 _LOGGER.debug("No websocket data, sending a ping.")
-                await asyncio.wait_for(await self.websocket.ping(), timeout=10)
+                await asyncio.wait_for(await self.websocket.ping(), timeout=3)
             else:
                 k = 0
                 self._process_msg(msg)
