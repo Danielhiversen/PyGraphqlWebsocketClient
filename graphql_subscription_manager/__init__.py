@@ -6,6 +6,7 @@ import logging
 import sys
 from time import time
 
+import pkg_resources
 import websockets
 
 _LOGGER = logging.getLogger(__name__)
