@@ -19,6 +19,7 @@ try:
 except Exception:  # pylint: disable=broad-except
     VERSION = "dev"
 
+
 class SubscriptionManager:
     """Subscription manager."""
 
@@ -41,9 +42,7 @@ class SubscriptionManager:
         if user_agent is not None:
             self._user_agent = user_agent
         else:
-            self._user_agent = "Python/{0[0]}.{0[1]}".format(
-                sys.version_info
-            )
+            self._user_agent = "Python/{0[0]}.{0[1]}".format(sys.version_info)
         self._user_agent += f" graphql-subscription-manager/{VERSION}"
 
     def start(self):
@@ -222,7 +221,10 @@ class SubscriptionManager:
 
     async def _running_loop(self):
         k = 0
-        while self._state in (STATE_RUNNING, STATE_STARTING,):
+        while self._state in (
+            STATE_RUNNING,
+            STATE_STARTING,
+        ):
             try:
                 msg = await asyncio.wait_for(self.websocket.recv(), timeout=60)
             except asyncio.TimeoutError:
