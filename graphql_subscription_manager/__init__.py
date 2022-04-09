@@ -81,9 +81,7 @@ class SubscriptionManager:
         try:
             await self._running_loop()
         except Exception:  # pylint: disable=broad-except
-            if self._state == STATE_STOPPED:
-                _LOGGER.debug("Stopped, Connection error", exc_info=True)
-            else:
+            if self._state = STATE_RUNNING:
                 self.retry()
 
     async def stop(self):
@@ -235,7 +233,7 @@ class SubscriptionManager:
                     self.retry()
                     return
                 _LOGGER.debug("No websocket data, sending a ping.")
-                await asyncio.wait_for(await self.websocket.ping(), timeout=3)
+                await asyncio.wait_for(await self.websocket.ping(), timeout=2)
             else:
                 k = 0
                 self._process_msg(msg)
