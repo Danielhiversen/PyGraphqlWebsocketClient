@@ -1,7 +1,7 @@
 from setuptools import setup
 
 long_description = None
-with open("README.md", "r") as fp:
+with open("README.md") as fp:
     long_description = fp.read()
 
 setup(
