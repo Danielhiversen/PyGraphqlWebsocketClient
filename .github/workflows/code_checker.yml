@@ -21,6 +21,12 @@ jobs:
       - name: Install dependency
         run: |
           pip install isort black dlint flakeheaven flake8-deprecated flake8-executable wemake-python-styleguide pylint websockets
+      - name: wemake-python-styleguide
+        uses: wemake-services/wemake-python-styleguide
+        with:
+          reporter: 'github-pr-review'
+        env:
+          GITHUB_TOKEN: ${{ secrets.github_token }}
       - name: isort
         run: isort --check-only $SRC_FOLDER
       - name: black
