@@ -219,6 +219,7 @@ class SubscriptionManager:
 
     async def _init_web_socket(self):
         self.websocket = await asyncio.wait_for(
+            # pylint: disable=no-member
             websockets.connect(
                 self._url,
                 subprotocols=["graphql-transport-ws"],
