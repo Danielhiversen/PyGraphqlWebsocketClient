@@ -81,8 +81,8 @@ class SubscriptionManager:
 
         k = 0
         while self._state in (
-                STATE_RUNNING,
-                STATE_STARTING,
+            STATE_RUNNING,
+            STATE_STARTING,
         ):
             try:
                 msg = await asyncio.wait_for(self.websocket.recv(), timeout=60)
