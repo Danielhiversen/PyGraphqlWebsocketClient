@@ -4,10 +4,6 @@ build-backend = "setuptools.build_meta:__legacy__"
 
 
 [tool.pylint."MESSAGES CONTROL"]
-disable = [
-    "too-many-instance-attributes",
-    "too-few-public-methods",
-]
 enable = ["unidiomatic-typecheck", ]
 max-line-length=120
 

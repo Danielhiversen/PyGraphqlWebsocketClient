@@ -9,19 +9,18 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.11"
+          - "3.10"
     env:
-      SRC_FOLDER: custom_components/tibber_data
+      SRC_FOLDER: graphql_subscription_manager
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
       - name: Install dependency
         run: |
-          pip install isort black dlint flakeheaven flake8-deprecated flake8-executable pylint
+          pip install isort black dlint flakeheaven flake8-deprecated flake8-executable pylint websockets
       - name: isort
         run: isort --check-only $SRC_FOLDER
       - name: black

@@ -108,7 +108,7 @@ class SubscriptionManager:
 
         start_time = time()
 
-        for subscription_id in self.subscriptions.copy().keys():
+        for subscription_id in self.subscriptions.copy():
             _LOGGER.debug("Sending unsubscribe: %s", subscription_id)
             await self.unsubscribe(subscription_id)
 
@@ -219,6 +219,7 @@ class SubscriptionManager:
 
     async def _init_web_socket(self):
         self.websocket = await asyncio.wait_for(
+            # pylint: disable=no-member
             websockets.connect(
                 self._url,
                 subprotocols=["graphql-transport-ws"],
