@@ -108,7 +108,7 @@ class SubscriptionManager:
 
         start_time = time()
 
-        for subscription_id in self.subscriptions.copy().keys():
+        for subscription_id in self.subscriptions.copy():
             _LOGGER.debug("Sending unsubscribe: %s", subscription_id)
             await self.unsubscribe(subscription_id)
 
