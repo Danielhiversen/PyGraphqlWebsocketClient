@@ -20,7 +20,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependency
         run: |
-          pip install isort black dlint flakeheaven flake8-deprecated flake8-executable wemake-python-styleguide pylint websockets
+          pip install isort black dlint flakeheaven flake8-deprecated flake8-executable pylint websockets
       - name: isort
         run: isort --check-only $SRC_FOLDER
       - name: black
