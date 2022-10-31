@@ -41,12 +41,10 @@ class SubscriptionManager:
         self._client_task = None
         self._session_id = 0
         self._init_payload = init_payload
-        if user_agent is not None:
-            self._user_agent = user_agent
-        else:
+        if user_agent is None:
+            raise Exception("Please provide value for HTTP user agent. Example: MyHomeAutomationServer/1.2.3")
+        self._user_agent = f"{user_agent} graphql-subscription-manager/{VERSION}"
         self._retry_count = 0
-            self._user_agent = f"Python/{_ver[0]}.{_ver[1]}"
-        self._user_agent += f" graphql-subscription-manager/{VERSION}"
 
     def start(self):
         """Start websocket."""
