@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import random
 import sys
 from time import time
 
@@ -43,7 +44,7 @@ class SubscriptionManager:
         if user_agent is not None:
             self._user_agent = user_agent
         else:
-            _ver = sys.version_info
+        self._retry_count = 0
             self._user_agent = f"Python/{_ver[0]}.{_ver[1]}"
         self._user_agent += f" graphql-subscription-manager/{VERSION}"
 
@@ -99,6 +100,7 @@ class SubscriptionManager:
                     await self.retry()
             else:
                 k = 0
+                self._retry_count = 0
                 self._process_msg(msg)
 
     async def stop(self):
@@ -132,8 +134,19 @@ class SubscriptionManager:
         _LOGGER.debug("Close websocket")
         await self._close_websocket()
         _LOGGER.debug("Restart")
-        self._retry_timer = self.loop.call_soon(self.start)
-        _LOGGER.debug("Reconnecting to server.")
+        self._retry_count += 1
+
+        # Jitter of 1 to 60 seconds
+        jitter = random.randrange(1, 60)
+
+        # Exponential backoff
+        backoff = pow(self._retry_count, 2)
+
+        # Delay max 1 hour
+        delay_seconds = jitter + min(backoff, 60 * 60)
+        await self._close_websocket()
+        self._retry_timer = self.loop.call_later(delay_seconds, self.start)
+        _LOGGER.debug("Reconnecting to server after {delay_seconds:n} seconds; jitter {jitter}; backoff {backoff}")
 
     async def subscribe(self, sub_query, callback, timeout=3):
         """Add a new subscription."""
