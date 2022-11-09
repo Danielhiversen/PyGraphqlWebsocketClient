@@ -14,6 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 STATE_STARTING = "starting"
 STATE_RUNNING = "running"
 STATE_STOPPED = "stopped"
+STATE_WAIT_RETRY = "retry"
 
 try:
     VERSION = pkg_resources.require("graphql-subscription-manager")[0].version
@@ -75,32 +76,32 @@ class SubscriptionManager:
         try:
             await self._init_web_socket()
 
-            k = 0
-            while self._state in (
-                STATE_RUNNING,
-                STATE_STARTING,
-            ):
-                try:
-                    msg = await asyncio.wait_for(self.websocket.recv(), timeout=90)
-                except asyncio.TimeoutError:
-                    k += 1
-                    if k > 20:
-                        _LOGGER.debug("No data, reconnecting.")
-                        self._state = STATE_STOPPED
-                        await self.retry()
-                        return
-                    _LOGGER.debug("No websocket data, sending a ping.")
-                    await asyncio.wait_for(await self.websocket.ping(), timeout=20)
-                else:
-                    k = 0
-                    self._retry_count = 0
-                    self._process_msg(msg)
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.error("Error in websocket loop", exc_info=True)
-            if self._state != STATE_STOPPED:
-                self._state = STATE_STOPPED
-                await asyncio.sleep(1)
-                await self.retry()
+        k = 0
+        while self._state in (
+            STATE_RUNNING,
+            STATE_STARTING,
+        ):
+            try:
+                msg = await asyncio.wait_for(self.websocket.recv(), timeout=60)
+            except asyncio.TimeoutError:
+                k += 1
+                if k > 10:
+                    _LOGGER.debug("No data, reconnecting.")
+                    await self.retry()
+                    return
+                _LOGGER.debug("No websocket data, sending a ping.")
+                await asyncio.wait_for(await self.websocket.ping(), timeout=20)
+            except Exception:  # pylint: disable=broad-except
+                if not self.websocket:
+                    _LOGGER.debug("Websocket connection lost, wait for retry.")
+                
+                if self._state == STATE_RUNNING:
+                    _LOGGER.warning("Error receiving from websocket, trigger retry.", exc_info=1)
+                    await self.retry()
+            else:
+                k = 0
+                self._retry_count = 0
+                self._process_msg(msg)
 
     async def stop(self):
         """Close websocket connection."""
@@ -129,7 +130,7 @@ class SubscriptionManager:
         """Retry to connect to websocket."""
         _LOGGER.debug("Retry, state: %s", self._state)
         self._cancel_retry_timer()
-        self._state = STATE_STARTING
+        self._state = STATE_WAIT_RETRY
         _LOGGER.debug("Close websocket")
         await self._close_websocket()
         _LOGGER.debug("Restart")
@@ -143,13 +144,12 @@ class SubscriptionManager:
 
         # Delay max 1 hour
         delay_seconds = jitter + min(backoff, 60 * 60)
-        await self._close_websocket()
         self._retry_timer = self.loop.call_later(delay_seconds, self.start)
         _LOGGER.debug(
             "Reconnecting to server after %s seconds; jitter %s; backoff %s",
             delay_seconds,
             jitter,
-            backoff,
+            backoff
         )
 
     async def subscribe(self, sub_query, callback, timeout=3):
@@ -200,7 +200,7 @@ class SubscriptionManager:
         result = json.loads(msg)
 
         if (msg_type := result.get("type", "")) == "connection_ack":
-            _LOGGER.debug("Running")
+            _LOGGER.debug("Connection ACK received, running")
             self._state = STATE_RUNNING
             return
 
