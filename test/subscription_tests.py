@@ -36,14 +36,16 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 root.addHandler(handler)
 
+
 def callback_sub(data: dict) -> None:
             print(data)
+
 
 async def mainloop():
     print("Waiting")
 
-@pytest.mark.asyncio
-async def test_tibber_token():
+
+async def create_subscription() -> tuple:
     manager = SubscriptionManager(
             {"token": DEMO_TOKEN},
             WS_URL,
@@ -55,11 +57,29 @@ async def test_tibber_token():
             sub_id = await manager.subscribe(
                 LIVE_SUBSCRIBE % DEMO_HOME_ID, callback_sub
             )
-    print(f"Subscribed: {sub_id}")
 
+    return manager, sub_id
+
+
+async def run_subscription():
+    await create_subscription()
+    
     while True:
         await asyncio.sleep(1)
         logging.debug("Sleeping...")
 
+
+@pytest.mark.asyncio
+async def test_subscription():
+    
+    manager, sub_id = await create_subscription()
+
+    assert manager.is_running
+    assert sub_id == "0"
+    
+    await manager.stop()
+
+    assert not manager.is_running
+
 if __name__ == "__main__":
-    asyncio.run(test_tibber_token())
+    asyncio.run(run_subscription())
