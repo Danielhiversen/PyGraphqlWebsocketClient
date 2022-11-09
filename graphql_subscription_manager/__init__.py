@@ -15,6 +15,7 @@ _LOGGER = logging.getLogger(__name__)
 STATE_STARTING = "starting"
 STATE_RUNNING = "running"
 STATE_STOPPED = "stopped"
+STATE_WAIT_RETRY = "retry"
 
 try:
     VERSION = pkg_resources.require("graphql-subscription-manager")[0].version
@@ -94,7 +95,11 @@ class SubscriptionManager:
                 _LOGGER.debug("No websocket data, sending a ping.")
                 await asyncio.wait_for(await self.websocket.ping(), timeout=20)
             except Exception:  # pylint: disable=broad-except
+                if not self.websocket:
+                    _LOGGER.debug("Websocket connection lost, wait for retry.")
+                
                 if self._state == STATE_RUNNING:
+                    _LOGGER.warning("Error receiving from websocket, trigger retry.", exc_info=1)
                     await self.retry()
             else:
                 k = 0
@@ -128,7 +133,7 @@ class SubscriptionManager:
         """Retry to connect to websocket."""
         _LOGGER.debug("Retry, state: %s", self._state)
         self._cancel_retry_timer()
-        self._state = STATE_STARTING
+        self._state = STATE_WAIT_RETRY
         _LOGGER.debug("Close websocket")
         await self._close_websocket()
         _LOGGER.debug("Restart")
@@ -142,9 +147,13 @@ class SubscriptionManager:
 
         # Delay max 1 hour
         delay_seconds = jitter + min(backoff, 60 * 60)
-        await self._close_websocket()
         self._retry_timer = self.loop.call_later(delay_seconds, self.start)
-        _LOGGER.debug("Reconnecting to server after {delay_seconds:n} seconds; jitter {jitter}; backoff {backoff}")
+        _LOGGER.debug(
+            "Reconnecting to server after %s seconds; jitter %s; backoff %s",
+            delay_seconds,
+            jitter,
+            backoff
+        )
 
     async def subscribe(self, sub_query, callback, timeout=3):
         """Add a new subscription."""
@@ -192,7 +201,7 @@ class SubscriptionManager:
         result = json.loads(msg)
 
         if (msg_type := result.get("type", "")) == "connection_ack":
-            _LOGGER.debug("Running")
+            _LOGGER.debug("Connection ACK received, running")
             self._state = STATE_RUNNING
             return
 
