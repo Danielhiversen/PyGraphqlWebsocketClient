@@ -8,6 +8,7 @@ from time import time
 
 import pkg_resources
 import websockets
+from uuid import uuid4
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,10 +16,35 @@ STATE_STARTING = "starting"
 STATE_RUNNING = "running"
 STATE_STOPPED = "stopped"
 
+SUB_STATE_CREATED = "created"
+SUB_STATE_INIT = "initializing"
+SUB_STATE_RUNNING = "running"
+
 try:
     VERSION = pkg_resources.require("graphql-subscription-manager")[0].version
 except Exception:  # pylint: disable=broad-except
     VERSION = "dev"
+
+
+class Subscription:
+    
+    def __init__(self, callback, sub_query) -> None:
+        self._id = uuid4().hex
+        self._callback = callback
+        self._sub_query = sub_query
+        self.state = SUB_STATE_CREATED
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def callback(self):
+        return self._callback
+    
+    @property
+    def sub_query(self):
+        return self._sub_query
 
 
 class SubscriptionManager:
@@ -32,7 +58,8 @@ class SubscriptionManager:
             self.loop = asyncio.get_running_loop()
         except RuntimeError:
             self.loop = asyncio.get_event_loop()
-        self.subscriptions = {}
+        self.subscriptions : dict[str, Subscription] = {}
+        self.subs_waiting : list[str] = []
         self._url = url
         self._state = None
         self.websocket = None
@@ -47,6 +74,29 @@ class SubscriptionManager:
             self._user_agent = f"Python/{_ver[0]}.{_ver[1]}"
         self._user_agent += f" graphql-subscription-manager/{VERSION}"
 
+    async def _ensure_subscriptions(self):
+        while not self.is_running:
+            _LOGGER.debug("Connection not running, waiting with subscriptions")
+            await asyncio.sleep(1)
+            continue
+
+        while self.subs_waiting:
+            for sub_id in self.subs_waiting:
+                sub = self.subscriptions[sub_id]
+                if sub.state == SUB_STATE_CREATED:
+                    if await self._subscribe_remote(sub_id):
+                        self.subs_waiting.remove(sub_id)
+                    continue
+
+                old_sub = self.subscriptions.pop(sub_id)
+                self.subs_waiting.remove(sub_id)
+
+                _LOGGER.debug("Removed, %s", sub_id)
+                if old_sub.callback is None:
+                    continue
+                _LOGGER.debug("Add subscription %s", old_sub.callback)
+                await self.subscribe(old_sub.sub_query, old_sub.callback)
+
     def start(self):
         """Start websocket."""
         _LOGGER.debug("Start state %s.", self._state)
@@ -55,13 +105,7 @@ class SubscriptionManager:
         self._state = STATE_STARTING
         self._cancel_client_task()
         self._client_task = self.loop.create_task(self.running())
-        for subscription in self.subscriptions.copy():
-            callback, sub_query = self.subscriptions.pop(subscription, (None, None))
-            _LOGGER.debug("Removed, %s", subscription)
-            if callback is None:
-                continue
-            _LOGGER.debug("Add subscription %s", callback)
-            self.loop.create_task(self.subscribe(sub_query, callback))
+        self.loop.create_task(self._ensure_subscriptions())
 
     @property
     def is_running(self):
@@ -95,6 +139,9 @@ class SubscriptionManager:
                 _LOGGER.debug("No websocket data, sending a ping.")
                 await asyncio.wait_for(await self.websocket.ping(), timeout=20)
             except Exception:  # pylint: disable=broad-except
+                if not self.websocket:
+                    _LOGGER.debug("Websocket connection lost. State: %s", self._state)
+                
                 if self._state == STATE_RUNNING:
                     await self.retry()
             else:
@@ -131,33 +178,60 @@ class SubscriptionManager:
         self._state = STATE_STARTING
         _LOGGER.debug("Close websocket")
         await self._close_websocket()
+        _LOGGER.debug("Invalidate subscriptions")
+        self._retrigger_subscriptions()
         _LOGGER.debug("Restart")
         self._retry_timer = self.loop.call_soon(self.start)
         _LOGGER.debug("Reconnecting to server.")
 
-    async def subscribe(self, sub_query, callback, timeout=3):
-        """Add a new subscription."""
-        current_session_id = str(self._session_id)
-        self._session_id += 1
+    def _retrigger_subscriptions(self):
+        for sub in self.subscriptions:
+            self.subs_waiting.append(sub)
+
+    async def _subscribe_remote(self, session_id, timeout=3):
+        sub = self.subscriptions[session_id]
+        
+        if sub.state == SUB_STATE_RUNNING:
+            _LOGGER.debug("Subscription %s already running, no action", session_id)
+            return True
+
+        sub.state = SUB_STATE_INIT
         subscription = {
-            "payload": {"query": sub_query},
+            "payload": {"query": sub.sub_query},
             "type": "subscribe",
-            "id": current_session_id,
+            "id": session_id,
         }
 
+        retries_left = 5
         json_subscription = json.dumps(subscription)
-        self.subscriptions[current_session_id] = (callback, sub_query)
+        while retries_left:
+            start_time = time()
+            while time() - start_time < timeout:
+                if self.websocket is None or not self.websocket.open or not self.is_running:
+                    await asyncio.sleep(0.1)
+                    continue
 
-        start_time = time()
-        while time() - start_time < timeout:
-            if self.websocket is None or not self.websocket.open or not self.is_running:
-                await asyncio.sleep(0.1)
-                continue
+                await self.websocket.send(json_subscription)
+                _LOGGER.debug("New subscription %s", session_id)
+                sub.state = SUB_STATE_RUNNING
+                return True
+            
+            #timed out
+            retries_left -= 1
 
-            await self.websocket.send(json_subscription)
-            _LOGGER.debug("New subscription %s", current_session_id)
-            return current_session_id
-        return None
+        sub.state = SUB_STATE_CREATED
+        return False
+
+    async def subscribe(self, sub_query, callback, timeout=3):
+        """Add a new subscription."""
+        sub = Subscription(callback, sub_query)
+        
+        self.subscriptions[sub.id] = sub
+        _LOGGER.debug("Subscription %s added", sub.id)
+
+        self.subs_waiting.append(sub.id)
+
+        return sub.id
 
     async def unsubscribe(self, subscription_id):
         """Unsubscribe."""
@@ -167,6 +241,7 @@ class SubscriptionManager:
         await self.websocket.send(
             json.dumps({"id": str(subscription_id), "type": "complete"})
         )
+        self._session_id = None
 
     async def _close_websocket(self):
         if self.websocket is None:
@@ -201,7 +276,7 @@ class SubscriptionManager:
             _LOGGER.warning("Unknown id %s.", subscription_id)
             return
         _LOGGER.debug("Received data %s", data)
-        self.subscriptions[subscription_id][0](data)
+        self.subscriptions[subscription_id].callback(data)
 
     def _cancel_retry_timer(self):
         if self._retry_timer is None:
@@ -219,7 +294,7 @@ class SubscriptionManager:
         finally:
             self._client_task = None
 
-    async def _init_web_socket(self):
+    async def _init_web_socket(self) -> bool:
         self.websocket = await asyncio.wait_for(
             # pylint: disable=no-member
             websockets.connect(
@@ -229,11 +304,20 @@ class SubscriptionManager:
             ),
             timeout=10,
         )
-        await self.websocket.send(
-            json.dumps(
-                {
-                    "type": "connection_init",
-                    "payload": self._init_payload,
-                }
+        
+        try:
+            await self.websocket.send(
+                json.dumps(
+                    {
+                        "type": "connection_init",
+                        "payload": self._init_payload,
+                    }
+                )
             )
-        )
+        except websockets.ConnectionClosed:
+            raise
+        
+        # without wait the websocket is still open, it takes a few milliseconds to receive the CLOSE event and that it actually gets closed
+        await asyncio.sleep(0.5)
+        if self.websocket is None or not self.websocket.open:
+            raise Exception("Failed to initiate websocket connection")
