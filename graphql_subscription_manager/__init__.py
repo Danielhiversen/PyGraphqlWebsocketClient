@@ -74,32 +74,32 @@ class SubscriptionManager:
 
         try:
             await self._init_web_socket()
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.debug("Failed to connect. Reconnecting... ", exc_info=True)
-            await self.retry()
-            return
 
-        k = 0
-        while self._state in (
-            STATE_RUNNING,
-            STATE_STARTING,
-        ):
-            try:
-                msg = await asyncio.wait_for(self.websocket.recv(), timeout=60)
-            except asyncio.TimeoutError:
-                k += 1
-                if k > 10:
-                    _LOGGER.debug("No data, reconnecting.")
-                    await self.retry()
-                    return
-                _LOGGER.debug("No websocket data, sending a ping.")
-                await asyncio.wait_for(await self.websocket.ping(), timeout=20)
-            except Exception:  # pylint: disable=broad-except
-                if self._state == STATE_RUNNING:
-                    await self.retry()
-            else:
-                k = 0
-                self._process_msg(msg)
+            k = 0
+            while self._state in (
+                STATE_RUNNING,
+                STATE_STARTING,
+            ):
+                try:
+                    msg = await asyncio.wait_for(self.websocket.recv(), timeout=90)
+                except asyncio.TimeoutError:
+                    k += 1
+                    if k > 20:
+                        _LOGGER.debug("No data, reconnecting.")
+                        self._state = STATE_STOPPED
+                        await self.retry()
+                        return
+                    _LOGGER.debug("No websocket data, sending a ping.")
+                    await asyncio.wait_for(await self.websocket.ping(), timeout=20)
+                else:
+                    k = 0
+                    self._process_msg(msg)
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.error("Error in websocket loop", exc_info=True)
+            if self._state != STATE_STOPPED:
+                self._state = STATE_STOPPED
+                await asyncio.sleep(1)
+                await self.retry()
 
     async def stop(self):
         """Close websocket connection."""
@@ -150,6 +150,8 @@ class SubscriptionManager:
 
         start_time = time()
         while time() - start_time < timeout:
+            if self._state == STATE_STOPPED:
+                return None
             if self.websocket is None or not self.websocket.open or not self.is_running:
                 await asyncio.sleep(0.1)
                 continue
