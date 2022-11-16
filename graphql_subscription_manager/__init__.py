@@ -132,13 +132,13 @@ class SubscriptionManager:
         _LOGGER.debug("Close websocket")
         await self._close_websocket()
         _LOGGER.debug("Restart")
-        self._retry_count += 1
 
         # Jitter of 1 to 60 seconds
         jitter = random.randrange(1, 60)
 
         # Exponential backoff
         backoff = pow(self._retry_count, 2)
+        self._retry_count += 1
 
         # Delay max 1 hour
         delay_seconds = jitter + min(backoff, 60 * 60)
