@@ -42,7 +42,9 @@ class SubscriptionManager:
         self._session_id = 0
         self._init_payload = init_payload
         if user_agent is None:
-            raise Exception("Please provide value for HTTP user agent. Example: MyHomeAutomationServer/1.2.3")
+            raise Exception(
+                "Please provide value for HTTP user agent. Example: MyHomeAutomationServer/1.2.3"
+            )
         self._user_agent = f"{user_agent} graphql-subscription-manager/{VERSION}"
         self._retry_count = 0
 
@@ -144,7 +146,9 @@ class SubscriptionManager:
         delay_seconds = jitter + min(backoff, 60 * 60)
         await self._close_websocket()
         self._retry_timer = self.loop.call_later(delay_seconds, self.start)
-        _LOGGER.debug(f"Reconnecting to server after {delay_seconds:n} seconds; jitter {jitter}; backoff {backoff}")
+        _LOGGER.debug(
+            f"Reconnecting to server after {delay_seconds:n} seconds; jitter {jitter}; backoff {backoff}"
+        )
 
     async def subscribe(self, sub_query, callback, timeout=3):
         """Add a new subscription."""
