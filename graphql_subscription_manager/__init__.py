@@ -146,7 +146,10 @@ class SubscriptionManager:
         await self._close_websocket()
         self._retry_timer = self.loop.call_later(delay_seconds, self.start)
         _LOGGER.debug(
-            f"Reconnecting to server after {delay_seconds:n} seconds; jitter {jitter}; backoff {backoff}"
+            "Reconnecting to server after %s seconds; jitter %s; backoff %s",
+            delay_seconds,
+            jitter,
+            backoff,
         )
 
     async def subscribe(self, sub_query, callback, timeout=3):
