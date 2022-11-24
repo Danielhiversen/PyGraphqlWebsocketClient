@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-import sys
+import random
 from time import time
 
 import pkg_resources
@@ -40,12 +40,12 @@ class SubscriptionManager:
         self._client_task = None
         self._session_id = 0
         self._init_payload = init_payload
-        if user_agent is not None:
-            self._user_agent = user_agent
-        else:
-            _ver = sys.version_info
-            self._user_agent = f"Python/{_ver[0]}.{_ver[1]}"
-        self._user_agent += f" graphql-subscription-manager/{VERSION}"
+        if user_agent is None:
+            raise Exception(
+                "Please provide value for HTTP user agent. Example: MyHomeAutomationServer/1.2.3"
+            )
+        self._user_agent = f"{user_agent} graphql-subscription-manager/{VERSION}"
+        self._retry_count = 0
 
     def start(self):
         """Start websocket."""
@@ -93,6 +93,7 @@ class SubscriptionManager:
                     await asyncio.wait_for(await self.websocket.ping(), timeout=20)
                 else:
                     k = 0
+                    self._retry_count = 0
                     self._process_msg(msg)
         except Exception:  # pylint: disable=broad-except
             _LOGGER.error("Error in websocket loop", exc_info=True)
@@ -132,8 +133,24 @@ class SubscriptionManager:
         _LOGGER.debug("Close websocket")
         await self._close_websocket()
         _LOGGER.debug("Restart")
-        self._retry_timer = self.loop.call_soon(self.start)
-        _LOGGER.debug("Reconnecting to server.")
+
+        # Jitter of 1 to 60 seconds
+        jitter = random.randrange(1, 60)
+
+        # Exponential backoff
+        backoff = pow(self._retry_count, 2)
+        self._retry_count += 1
+
+        # Delay max 1 hour
+        delay_seconds = jitter + min(backoff, 60 * 60)
+        await self._close_websocket()
+        self._retry_timer = self.loop.call_later(delay_seconds, self.start)
+        _LOGGER.debug(
+            "Reconnecting to server after %s seconds; jitter %s; backoff %s",
+            delay_seconds,
+            jitter,
+            backoff,
+        )
 
     async def subscribe(self, sub_query, callback, timeout=3):
         """Add a new subscription."""
